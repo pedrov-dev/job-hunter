@@ -35,7 +35,7 @@ log = logging.getLogger("jobbot.main")
 from config import BEHAVIOR
 from src.discovery import discover_all
 from src.tailor import process_job
-from submissions.submitter import submit
+from src.submitter import submit
 from tracking.tracker import (
     _rebuild_feed,
     get_stats,

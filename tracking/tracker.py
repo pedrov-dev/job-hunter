@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from config import DATA_DIR
 from src.discovery import JobPosting
-from submissions.submitter import SubmissionResult
+from src.submitter import SubmissionResult
 
 log = logging.getLogger("jobbot.tracking")
 
