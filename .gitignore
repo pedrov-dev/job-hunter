@@ -20,7 +20,11 @@ dist/
 build/
 *.egg-info/
 
-# IDE
-.vscode/*.log
+# IDEs and configs
 .github/
 .vscode/
+
+# Logs and data
+logs/
+data/
+resumes/
