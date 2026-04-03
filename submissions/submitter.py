@@ -21,7 +21,7 @@ from pathlib import Path
 from playwright.async_api import Page, async_playwright
 
 from config import BEHAVIOR, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER
-from core.discovery import JobPosting
+from src.discovery import JobPosting
 
 log = logging.getLogger("jobbot.submissions")
 

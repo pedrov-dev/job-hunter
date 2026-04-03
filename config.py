@@ -88,7 +88,7 @@ class ResumeConfig:
     variants: list[ResumeVariant] = field(default_factory=lambda: [
         ResumeVariant(
             key="general_ai",
-            filename="general_ai.md",
+            filename="general_ai.pdf",
             title_keywords=[
                 "ai consultant",
                 "machine learning consultant",
@@ -99,7 +99,7 @@ class ResumeConfig:
         ),
         ResumeVariant(
             key="ai_leadership",
-            filename="ai_leadership.md",
+            filename="ai_leadership.pdf",
             title_keywords=[
                 "head of ai",
                 "ai strategy lead",
@@ -107,17 +107,6 @@ class ResumeConfig:
                 "ai lead",
             ],
             industries=["financial services", "fintech", "healthcare"],
-        ),
-        ResumeVariant(
-            key="automation_ops",
-            filename="automation_ops.md",
-            title_keywords=[
-                "automation consultant",
-                "automation lead",
-                "operations",
-                "process improvement",
-            ],
-            industries=["logistics", "retail", "operations", "manufacturing"],
         ),
     ])
 

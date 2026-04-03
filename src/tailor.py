@@ -1,6 +1,6 @@
 """
-core/tailor.py
---------------
+src/tailor.py
+-------------
 Two responsibilities:
   1. Score job postings against your profile (match_score 0-100).
   2. Select the best pre-written resume variant for the role and optionally
@@ -12,16 +12,17 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shutil
 from pathlib import Path
 
 from openai import OpenAI
 
 from config import AI, BASE_DIR, OPENAI_API_KEY, RESUME_DIR, RESUMES, ResumeVariant
-from core.discovery import JobPosting
+from src.discovery import JobPosting
 
 log = logging.getLogger("jobbot.tailor")
 RESUME_LIBRARY = RESUMES.variants
-LEGACY_RESUME_PATH = RESUME_DIR / "master_resume.md"
+LEGACY_RESUME_PATH = RESUME_DIR / "master_resume.pdf"
 
 
 def _normalize(text: str) -> str:
@@ -40,19 +41,34 @@ def _default_resume_variant() -> ResumeVariant:
         return RESUME_LIBRARY[0]
     return ResumeVariant(
         key="master_resume",
-        filename="master_resume.md",
+        filename="master_resume.pdf",
         is_default=True,
     )
 
 
-def _read_resume_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+def _extract_pdf_text(path: Path) -> str:
+    try:
+        from pypdf import PdfReader
+    except ImportError as err:
+        raise ImportError("Install with: pip install pypdf") from err
+
+    reader = PdfReader(str(path))
+    extracted_pages = [(page.extract_text() or "").strip() for page in reader.pages]
+    text = "\n\n".join(filter(None, extracted_pages)).strip()
+    if text:
+        return text
+
+    log.warning(
+        "Resume PDF at %s has no extractable text; using filename as fallback context.",
+        path,
+    )
+    return path.stem.replace("_", " ")
 
 
-def load_resume_text(variant: ResumeVariant) -> str:
+def resolve_resume_path(variant: ResumeVariant) -> Path:
     candidate_path = RESUME_DIR / variant.filename
     if candidate_path.exists():
-        return _read_resume_text(candidate_path)
+        return candidate_path
 
     default_variant = _default_resume_variant()
     default_path = RESUME_DIR / default_variant.filename
@@ -62,19 +78,24 @@ def load_resume_text(variant: ResumeVariant) -> str:
             variant.key,
             candidate_path,
         )
-        return _read_resume_text(default_path)
+        return default_path
 
     if LEGACY_RESUME_PATH.exists():
         log.warning(
-            "Resume variant '%s' not found; using legacy master_resume.md.",
+            "Resume variant '%s' not found; using fallback %s.",
             variant.key,
+            LEGACY_RESUME_PATH.name,
         )
-        return _read_resume_text(LEGACY_RESUME_PATH)
+        return LEGACY_RESUME_PATH
 
     raise FileNotFoundError(
-        "No resume files found. Add the files listed in config.RESUMES.variants "
+        "No resume PDF files found. Add the files listed in config.RESUMES.variants "
         f"under {RESUME_DIR} or create {LEGACY_RESUME_PATH.name}."
     )
+
+
+def load_resume_text(variant: ResumeVariant) -> str:
+    return _extract_pdf_text(resolve_resume_path(variant))
 
 
 def score_resume_variant(job: JobPosting, variant: ResumeVariant) -> int:
@@ -251,6 +272,7 @@ def process_job(job: JobPosting) -> dict | None:
     Returns a dict ready for submission, or None if below threshold.
     """
     variant, selected_resume = select_resume_variant(job)
+    selected_resume_pdf = resolve_resume_path(variant)
 
     log.info("Scoring: %s @ %s [resume=%s]", job.title, job.company, variant.key)
     score_result = score_job(job.description, selected_resume)
@@ -273,7 +295,9 @@ def process_job(job: JobPosting) -> dict | None:
 
     out_dir = BASE_DIR / "output" / job.id
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "resume.md").write_text(selected_resume, encoding="utf-8")
+    output_resume_pdf = out_dir / "resume.pdf"
+    shutil.copy2(selected_resume_pdf, output_resume_pdf)
+    (out_dir / "resume.txt").write_text(selected_resume, encoding="utf-8")
     (out_dir / "cover_letter.txt").write_text(cover_letter, encoding="utf-8")
     (out_dir / "job.json").write_text(
         json.dumps(
@@ -281,7 +305,7 @@ def process_job(job: JobPosting) -> dict | None:
                 **job.__dict__,
                 "score_details": score_result,
                 "resume_variant": variant.key,
-                "resume_file": variant.filename,
+                "resume_file": selected_resume_pdf.name,
             },
             indent=2,
         ),
@@ -293,6 +317,7 @@ def process_job(job: JobPosting) -> dict | None:
         "tailored_resume": selected_resume,
         "selected_resume": selected_resume,
         "resume_variant": variant.key,
+        "resume_pdf": output_resume_pdf,
         "cover_letter": cover_letter,
         "score": job.match_score,
         "score_details": score_result,

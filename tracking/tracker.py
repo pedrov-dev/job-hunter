@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 from config import DATA_DIR
-from core.discovery import JobPosting
+from src.discovery import JobPosting
 from submissions.submitter import SubmissionResult
 
 log = logging.getLogger("jobbot.tracking")

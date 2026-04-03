@@ -7,7 +7,7 @@ It currently supports:
 - Job discovery from Indeed RSS and public career pages backed by Greenhouse, Lever, or Ashby
 - OpenAI-powered scoring with rule-based resume selection by title and industry
 - Optional cover letter generation
-- PDF resume generation with WeasyPrint
+- Direct use of prebuilt PDF resume variants for submission
 - Submission flows for Indeed, generic ATS forms, and email applications
 - Local SQLite tracking plus a JSON feed for the dashboard
 
@@ -38,11 +38,11 @@ The main settings live in [config.py](config.py):
 - AI settings such as provider, model, scoring threshold, and cover letter behavior
 - Run behavior such as per-run application limit, browser mode, and follow-up timing
 
-Save a short set of resume variants under [resumes/](resumes). The defaults are:
+Save a short set of PDF resume variants under [resumes/](resumes). The defaults are:
 
-- `resumes/general_ai.md`
-- `resumes/ai_leadership.md`
-- `resumes/automation_ops.md`
+- `resumes/general_ai.pdf`
+- `resumes/ai_leadership.pdf`
+- `resumes/automation_ops.pdf`
 
 Update [config.py](config.py) if you want different filenames, title keywords, or target industries.
 
@@ -63,7 +63,7 @@ python main.py --limit 5
 1. Discover jobs
 2. Select the best resume variant based on title and industry
 3. Score each job against that resume and optionally draft a cover letter
-4. Convert the selected resume to PDF
+4. Validate the selected resume PDF and prepare outputs
 5. Submit applications
 6. Send follow-up emails if enabled
 
@@ -87,9 +87,8 @@ The dashboard UI lives in [ui/dashboard.html](ui/dashboard.html). It is a static
 
 - [main.py](main.py): CLI entry point and pipeline orchestration
 - [config.py](config.py): search, AI, and behavior configuration
-- [core/discovery.py](core/discovery.py): job discovery and deduplication
-- [core/tailor.py](core/tailor.py): scoring, resume selection, and cover letter generation
-- [core/resume_pdf.py](core/resume_pdf.py): Markdown to PDF conversion
+- [src/discovery.py](src/discovery.py): job discovery and deduplication
+- [src/tailor.py](src/tailor.py): scoring, PDF resume selection, and cover letter generation
 - [submissions/submitter.py](submissions/submitter.py): application submission handlers
 - [tracking/tracker.py](tracking/tracker.py): SQLite persistence and dashboard feed generation
 - [ui/dashboard.html](ui/dashboard.html): local dashboard UI
@@ -97,5 +96,5 @@ The dashboard UI lives in [ui/dashboard.html](ui/dashboard.html). It is a static
 ## Notes
 
 - The project is intentionally hands-on: browser automation and form filling may need selector updates when target sites change.
-- The repository does not currently include an automated test suite.
+- A small pytest suite covers resume selection behavior; extend it as the automation grows.
 - Keep [requirements.txt](requirements.txt), [requirements-dev.txt](requirements-dev.txt), and [pyproject.toml](pyproject.toml) aligned when dependencies change.

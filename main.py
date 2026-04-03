@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
 
 # ── Logging setup ──────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -34,9 +33,8 @@ log = logging.getLogger("jobbot.main")
 
 # ── Imports (after logging is set up) ─────────────────────────────────────────
 from config import BEHAVIOR
-from core.discovery import discover_all
-from core.resume_pdf import md_to_pdf
-from core.tailor import process_job
+from src.discovery import discover_all
+from src.tailor import process_job
 from submissions.submitter import submit
 from tracking.tracker import (
     _rebuild_feed,
@@ -48,7 +46,7 @@ from tracking.tracker import (
 
 # ── Main pipeline ──────────────────────────────────────────────────────────────
 
-async def run(dry_run: bool = False, limit: int = None):
+async def run(dry_run: bool = False, limit: int | None = None):
     log.info("=" * 60)
     log.info("JobBot starting")
     log.info(f"  dry_run={dry_run}  limit={limit or BEHAVIOR.max_applications_per_run}")
@@ -90,16 +88,20 @@ async def run(dry_run: bool = False, limit: int = None):
         log.info("No jobs met the match threshold. Done.")
         return
 
-    # ── 3. Convert resumes to PDF ──────────────────────────────────────────────
-    log.info("Phase 3: Generating PDFs")
+    # ── 3. Validate selected PDFs ─────────────────────────────────────────────
+    log.info("Phase 3: Validating selected PDF resumes")
+    ready_applications = []
     for app in applications:
-        pdf_path = Path(app["output_dir"]) / "resume.pdf"
-        try:
-            md_to_pdf(app["tailored_resume"], pdf_path)
-            app["resume_pdf"] = pdf_path
-        except Exception as e:
-            log.warning(f"  PDF generation failed for {app['job'].id}: {e}")
-            app["resume_pdf"] = None
+        resume_pdf = app.get("resume_pdf")
+        if resume_pdf and resume_pdf.exists():
+            ready_applications.append(app)
+        else:
+            log.warning(f"  Missing PDF resume for {app['job'].id}; skipping")
+
+    applications = ready_applications
+    if not applications:
+        log.info("No applications have a usable PDF resume. Done.")
+        return
 
     # ── 4. Submit ──────────────────────────────────────────────────────────────
     if dry_run:

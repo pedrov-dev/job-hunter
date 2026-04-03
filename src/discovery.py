@@ -1,6 +1,6 @@
 """
-core/discovery.py
------------------
+src/discovery.py
+----------------
 Discovers job postings from multiple sources.
 Returns a unified list of JobPosting objects.
 """
@@ -103,14 +103,19 @@ class IndeedDiscovery:
         save_seen(seen)
         return postings
 
-    def _parse_rss(self, xml: str, seen: set) -> list[JobPosting]:
+    def _parse_rss(self, xml: str, seen: set[str]) -> list[JobPosting]:
         soup = BeautifulSoup(xml, "xml")
-        jobs = []
+        jobs: list[JobPosting] = []
         for item in soup.find_all("item"):
-            url   = item.find("link").text if item.find("link") else ""
-            title = item.find("title").text if item.find("title") else ""
-            desc  = item.find("description").text if item.find("description") else ""
-            date  = item.find("pubDate").text if item.find("pubDate") else ""
+            link_tag = item.find("link")
+            title_tag = item.find("title")
+            description_tag = item.find("description")
+            pub_date_tag = item.find("pubDate")
+
+            url = link_tag.text if link_tag else ""
+            title = title_tag.text if title_tag else ""
+            desc = description_tag.text if description_tag else ""
+            date = pub_date_tag.text if pub_date_tag else ""
             # Company usually in the title: "Job Title - Company (Location)"
             company, loc = self._extract_company_location(title)
 
@@ -275,7 +280,7 @@ async def discover_all(limit_per_source: int = 30) -> list[JobPosting]:
     results = await asyncio.gather(*tasks, return_exceptions=True)
     all_jobs: list[JobPosting] = []
     for r in results:
-        if isinstance(r, Exception):
+        if isinstance(r, BaseException):
             log.error(f"Discovery error: {r}")
         else:
             all_jobs.extend(r)

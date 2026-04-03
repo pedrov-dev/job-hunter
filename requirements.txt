@@ -6,6 +6,5 @@ playwright>=1.44
 httpx>=0.27
 beautifulsoup4>=4.12
 lxml>=5.2          # XML parser for RSS feeds
-markdown>=3.6
-weasyprint>=62.0   # PDF generation (also needs system libs — see docs)
+pypdf>=5.4        # Extract text from existing PDF resumes for scoring
 python-dotenv>=1.0
