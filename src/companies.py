@@ -1,564 +1,272 @@
+from __future__ import annotations
+
+from typing import NamedTuple
+
 # Format: (company_slug, ats_type)
 # Organized by: 🇲🇽 CDMX/Mexico presence → 🌎 Remote-friendly LATAM → 🌐 Relocation/visa-sponsored
 # Adjacent roles covered: ML Engineer, AI Platform, LLM Engineer, Data Scientist, Backend AI, MLOps
 
-SLUG_OVERRIDES: dict[str, dict[str, str]] = {
-    "lever": {
-        "clip-mx": "clip",
-        "incode-technologies": "incode",
-        "scaleai": "scale-ai",
-        "wandb": "weightsbiases",
-    },
-}
+CompanyTuple = tuple[str, str]
 
-COMPANY_NAME_OVERRIDES: dict[str, str] = {
-    "clip-mx": "Clip",
-    "incode-technologies": "Incode Technologies",
-    "scaleai": "Scale AI",
-    "wandb": "Weights & Biases",
-}
+CDMX = "cdmx_presence"
+LATAM = "latam_remote"
+AI_NATIVE = "ai_native_startups"
+GLOBAL_REMOTE = "global_remote_friendly"
+RELOCATION = "relocation_visa"
+ENTERPRISE = "enterprise_platforms"
 
-COMPANIES: list[tuple[str, str]] = [
+GROUP_ORDER: tuple[str, ...] = (
+    CDMX,
+    LATAM,
+    AI_NATIVE,
+    GLOBAL_REMOTE,
+    RELOCATION,
+    ENTERPRISE,
+)
 
+
+class CompanySpec(NamedTuple):
+    slug: str
+    ats: str
+    groups: tuple[str, ...] = ()
+    company_name: str | None = None
+    fetch_slug: str | None = None
+
+
+def company(
+    slug: str,
+    ats: str,
+    *groups: str,
+    company_name: str | None = None,
+    fetch_slug: str | None = None,
+) -> CompanySpec:
+    return CompanySpec(
+        slug=slug,
+        ats=ats,
+        groups=tuple(groups),
+        company_name=company_name,
+        fetch_slug=fetch_slug,
+    )
+
+
+_COMPANY_SPECS: tuple[CompanySpec, ...] = (
     # ── 🇲🇽 COMPANIES WITH CDMX OFFICES / MEXICO ENGINEERING TEAMS ────────────────
-
-    # Etsy — confirmed CDMX engineering office (Polanco)
-    ("etsy", "greenhouse"),
-    # Kavak — Mexico-founded unicorn, active ML team in CDMX
-    ("kavak", "greenhouse"),
-    # Clip — Mexican fintech, CDMX HQ, growing ML/data team
-    ("clip-mx", "lever"),
-    # Konfío — B2B fintech CDMX, ML for credit scoring
-    ("konfio", "greenhouse"),
-    # Bitso — Crypto exchange, CDMX office, ML/data engineering
-    ("bitso", "greenhouse"),
-    # Klar — Neobank CDMX, AI/ML for risk and fraud
-    ("klar", "lever"),
-    # Incode Technologies — Identity AI, CDMX HQ, LLM + vision engineering
-    ("incode-technologies", "lever"),
-    # LATAM Airlines — Greenhouse presence, MLE roles open in Mexico
-    ("latam", "greenhouse"),
-    # Qualcomm — CDMX engineering office, ML compiler roles
-    ("qualcomm", "greenhouse"),
-    # Google — Cloud AI Engineer roles specifically advertised for CDMX
-    ("google", "greenhouse"),
-    # Salesforce — Confirmed engineering in CDMX, ML/AI roles
-    ("salesforce", "greenhouse"),
-    # Wizeline — Mexico City + GDL + MTY, applied AI consulting arm
-    ("wizeline", "greenhouse"),
-    # Softtek — Enterprise AI, Mexico HQ, ISO 42001 certified AI mgmt
-    ("softtek", "greenhouse"),
-    # Encora — CDMX + Hermosillo, explicit LLM Engineering roles
-    ("encora", "greenhouse"),
-    # Scribd — Remote-friendly, multiple MLE openings targeting Mexico
-    ("scribd", "greenhouse"),
-    # SimplePractice — Confirmed ML roles visible in MX job boards
-    ("simplepractice", "greenhouse"),
-    # Sezzle — Buy-now-pay-later, ML roles open in Mexico City
-    ("sezzle", "greenhouse"),
-    # Grupo Salinas / Totalplay (tech arm) — Large CDMX conglomerate, AI initiatives
-    ("totalplay", "greenhouse"),
-    # Mercado Libre — Latam e-commerce giant, CDMX office, large ML platform team
-    ("mercadolibre", "greenhouse"),
-    # Oracle — OCI Data Science roles, Mexico engineering presence
-    ("oracle", "greenhouse"),
-    # BBVA Mexico — Banktech + AI, large CDMX AI center
-    ("bbva", "greenhouse"),
-    # Rappi — Delivery super-app, Mexico City office, ML/Recommendations team
-    ("rappi", "greenhouse"),
+    company("etsy", "greenhouse", CDMX),
+    company("kavak", "greenhouse", CDMX),
+    company("clip-mx", "lever", CDMX, company_name="Clip", fetch_slug="clip"),
+    company("konfio", "greenhouse", CDMX),
+    company("bitso", "greenhouse", CDMX),
+    company("klar", "lever", CDMX),
+    company(
+        "incode-technologies",
+        "lever",
+        CDMX,
+        company_name="Incode Technologies",
+        fetch_slug="incode",
+    ),
+    company("latam", "greenhouse", CDMX),
+    company("qualcomm", "greenhouse", CDMX),
+    company("google", "greenhouse", CDMX),
+    company("salesforce", "greenhouse", CDMX),
+    company("wizeline", "greenhouse", CDMX),
+    company("softtek", "greenhouse", CDMX),
+    company("encora", "greenhouse", CDMX),
+    company("scribd", "greenhouse", CDMX),
+    company("simplepractice", "greenhouse", CDMX),
+    company("sezzle", "greenhouse", CDMX),
+    company("totalplay", "greenhouse", CDMX),
+    company("mercadolibre", "greenhouse", CDMX),
+    company("oracle", "greenhouse", CDMX),
+    company("bbva", "greenhouse", CDMX),
+    company("rappi", "greenhouse", CDMX),
 
     # ── 🌎 REMOTE-FRIENDLY / LATAM-OPEN (STRONG SIGNAL) ──────────────────────────
-
-    # Factored — LATAM-focused AI/ML staffing + residency (Greenhouse confirmed)
-    ("factored", "greenhouse"),
-    # Arionkoder — LLM/AI Greenhouse-listed, explicitly LATAM remote
-    ("arionkoder", "greenhouse"),
-    # Xebia / LATAM — GCP ML roles open for LATAM (Greenhouse confirmed)
-    ("xebia", "greenhouse"),
-    # Quora / Poe — Remote-first, Ashby confirmed, MX-eligible countries
-    ("quora", "ashby"),
-    # Cohere — LLM infra company, Ashby confirmed, LATAM hires
-    ("cohere", "ashby"),
-    # Handshake — Ashby confirmed, ML intern/eng roles, remote eligible
-    ("handshake", "ashby"),
-    # Scale AI — Data annotation + LLM training platform, Lever, LATAM remote
-    ("scaleai", "lever"),
-    # Weights & Biases (wandb) — MLOps tooling, remote-first, Lever
-    ("wandb", "lever"),
-    # Labelbox — Data-centric AI, Wellfound/Greenhouse, remote eng
-    ("labelbox", "greenhouse"),
-    # Hugging Face — Open-source AI, remote-first globally, Lever
-    ("huggingface", "lever"),
-    # Replit — AI coding platform, remote-friendly, Ashby
-    ("replit", "ashby"),
-    # Runway ML — Generative AI/video, NYC + remote, Greenhouse
-    ("runwayml", "greenhouse"),
-    # ElevenLabs — Voice AI, remote-friendly, Ashby
-    ("elevenlabs", "ashby"),
-    # Stability AI — GenAI, remote-distributed, Greenhouse
-    ("stabilityai", "greenhouse"),
-    # Mistral AI — LLM company, remote roles, Lever (EU primarily but open)
-    ("mistral", "lever"),
-    # Anthropic — Safety-focused LLM lab, Greenhouse, US-based but growing
-    ("anthropic", "greenhouse"),
-    # OpenAI — LLM lab, Greenhouse, US-based with some intl roles
-    ("openai", "greenhouse"),
-    # Perplexity AI — AI search, Ashby, fast-growing remote roles
-    ("perplexityai", "ashby"),
-    # Character.AI — Conversational AI, Greenhouse, some remote
-    ("characterai", "greenhouse"),
-    # Together AI — LLM inference platform, Greenhouse, remote
-    ("togetherai", "greenhouse"),
-    # Anyscale — Ray / distributed ML, Greenhouse, remote-open
-    ("anyscale", "greenhouse"),
-    # Modal — Cloud GPU/ML infra, Ashby, remote-friendly
-    ("modal-labs", "ashby"),
-    # Replicate — ML model hosting, Ashby, remote-first
-    ("replicate", "ashby"),
-    # Luma AI — 3D/Video GenAI, Ashby
-    ("luma-ai", "ashby"),
-    # Glean — Enterprise AI search, Greenhouse, some remote
-    ("glean", "greenhouse"),
-    # Ema — Enterprise AI assistant, Greenhouse, remote
-    ("ema", "greenhouse"),
-    # Sierra AI — Conversational AI agents, Greenhouse
-    ("sierra", "greenhouse"),
-    # Dust — LLM ops / enterprise agents, Ashby
-    ("dust", "ashby"),
-    # Vapi — Voice AI infrastructure, Ashby
-    ("vapi", "ashby"),
+    company("factored", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("arionkoder", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("xebia", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("quora", "ashby", LATAM, GLOBAL_REMOTE),
+    company("cohere", "ashby", LATAM, GLOBAL_REMOTE),
+    company("handshake", "ashby", LATAM, GLOBAL_REMOTE),
+    company(
+        "scaleai",
+        "lever",
+        LATAM,
+        GLOBAL_REMOTE,
+        company_name="Scale AI",
+        fetch_slug="scale-ai",
+    ),
+    company(
+        "wandb",
+        "lever",
+        LATAM,
+        GLOBAL_REMOTE,
+        company_name="Weights & Biases",
+        fetch_slug="weightsbiases",
+    ),
+    company("labelbox", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("huggingface", "lever", LATAM, GLOBAL_REMOTE),
+    company("replit", "ashby", LATAM, GLOBAL_REMOTE),
+    company("runwayml", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("elevenlabs", "ashby", LATAM, GLOBAL_REMOTE),
+    company("stabilityai", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("mistral", "lever", LATAM, GLOBAL_REMOTE),
+    company("anthropic", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("openai", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("perplexityai", "ashby", LATAM, GLOBAL_REMOTE),
+    company("characterai", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("togetherai", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("anyscale", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("modal-labs", "ashby", LATAM, GLOBAL_REMOTE),
+    company("replicate", "ashby", LATAM, GLOBAL_REMOTE),
+    company("luma-ai", "ashby", LATAM, GLOBAL_REMOTE),
+    company("glean", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("ema", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("sierra", "greenhouse", LATAM, GLOBAL_REMOTE),
+    company("dust", "ashby", LATAM, GLOBAL_REMOTE),
+    company("vapi", "ashby", LATAM, GLOBAL_REMOTE),
 
     # ── 🌐 RELOCATION / VISA-SPONSORED OPPORTUNITIES ─────────────────────────────
-
-    # Deepmind — Google DeepMind, London/global, Greenhouse, visa sponsor
-    ("deepmind", "greenhouse"),
-
-    # Palantir — US/EU AI/ML, Lever, sponsors visas
-    ("palantir", "lever"),
-
-    # Stripe — Fintech AI platform, Greenhouse, strong relocation program
-    ("stripe", "greenhouse"),
-
-    # Databricks — Data+AI platform, Greenhouse, hires globally
-    ("databricks", "greenhouse"),
-
-    # Snowflake — Data cloud + Cortex AI, Greenhouse
-    ("snowflake", "greenhouse"),
-
-    # Datadog — Observability + AI, Greenhouse, EU/US relocation
-    ("datadog", "greenhouse"),
-
-    # MongoDB — Atlas Vector Search / AI layer, Greenhouse
-    ("mongodb", "greenhouse"),
-
-    # Elastic — ElasticSearch + ELSER AI search, Greenhouse
-    ("elastic", "greenhouse"),
-
-    # Cloudflare — AI Workers / inference edge, Greenhouse
-    ("cloudflare", "greenhouse"),
-
-    # Vercel — AI SDK/Next.js, Ashby, remote + relocation
-    ("vercel", "ashby"),
-
-    # Linear — Dev tooling, Ashby, remote-first EU/US
-    ("linear", "ashby"),
-
-    # Notion — Notion AI, Greenhouse, SF + NYC + remote
-    ("notion", "greenhouse"),
-
-    # Intercom — Fin AI agent, Greenhouse, Dublin + remote
-    ("intercom", "greenhouse"),
-
-    # Typeform — AI forms, Ashby, Barcelona HQ, LATAM-friendly
-    ("typeform", "ashby"),
-
-    # Figma — Design AI, Greenhouse, SF + remote
-    ("figma", "greenhouse"),
-
-    # Airtable — No-code + AI, Greenhouse, SF
-    ("airtable", "greenhouse"),
-
-    # Zapier — Workflow automation + AI, Greenhouse, remote-first
-    ("zapier", "greenhouse"),
-
-    # HubSpot — CRM + AI, Greenhouse, global offices
-    ("hubspot", "greenhouse"),
-
-    # Zendesk — CX + AI, Greenhouse, LATAM presence
-    ("zendesk", "greenhouse"),
-
-    # Twilio — Communications + AI, Greenhouse, remote
-    ("twilio", "greenhouse"),
-
-    # Brex — Fintech AI, Greenhouse, LATAM remote-open
-    ("brex", "greenhouse"),
-
-    # Ramp — Finance AI, Greenhouse, US-based + remote
-    ("ramp", "greenhouse"),
-
-    # Mercury — Banking API + AI, Ashby
-    ("mercury", "ashby"),
-
-    # Rippling — HR + AI platform, Greenhouse
-    ("rippling", "greenhouse"),
-
-    # Lattice — People mgmt + AI, Greenhouse
-    ("lattice", "greenhouse"),
-
-    # Leapsome — HR AI, Greenhouse, Berlin-based, remote-open
-    ("leapsome", "greenhouse"),
+    company("deepmind", "greenhouse", RELOCATION),
+    company("palantir", "lever", RELOCATION),
+    company("stripe", "greenhouse", RELOCATION),
+    company("databricks", "greenhouse", RELOCATION),
+    company("snowflake", "greenhouse", RELOCATION),
+    company("datadog", "greenhouse", RELOCATION),
+    company("mongodb", "greenhouse", RELOCATION),
+    company("elastic", "greenhouse", RELOCATION),
+    company("cloudflare", "greenhouse", RELOCATION),
+    company("vercel", "ashby", RELOCATION),
+    company("linear", "ashby", RELOCATION),
+    company("notion", "greenhouse", RELOCATION),
+    company("intercom", "greenhouse", GLOBAL_REMOTE, RELOCATION),
+    company("typeform", "ashby", GLOBAL_REMOTE, RELOCATION),
+    company("figma", "greenhouse", RELOCATION),
+    company("airtable", "greenhouse", RELOCATION),
+    company("zapier", "greenhouse", GLOBAL_REMOTE, RELOCATION),
+    company("hubspot", "greenhouse", RELOCATION),
+    company("zendesk", "greenhouse", GLOBAL_REMOTE, RELOCATION),
+    company("twilio", "greenhouse", RELOCATION),
+    company("brex", "greenhouse", GLOBAL_REMOTE, RELOCATION),
+    company("ramp", "greenhouse", GLOBAL_REMOTE, RELOCATION),
+    company("mercury", "ashby", GLOBAL_REMOTE, RELOCATION),
+    company("rippling", "greenhouse", RELOCATION),
+    company("lattice", "greenhouse", RELOCATION),
+    company("leapsome", "greenhouse", GLOBAL_REMOTE, RELOCATION),
 
     # ── 🤖 AI-NATIVE STARTUPS (HIGH SIGNAL FOR AI ENG ROLES) ─────────────────────
-
-    # Harvey AI — Legal AI, Ashby
-    ("harvey", "ashby"),
-
-    # Casetext / Thomson Reuters AI — Legal AI, Greenhouse
-    ("casetext", "greenhouse"),
-
-    # Hippocratic AI — Healthcare AI agents, Greenhouse
-    ("hippocratic-ai", "greenhouse"),
-
-    # Abridge — Medical AI transcription, Greenhouse
-    ("abridge", "greenhouse"),
-
-    # Nabla — Clinical AI, CDMX-adjacent (French + US), Lever
-    ("nabla", "lever"),
-
-    # Rad AI — Radiology AI, Greenhouse
-    ("rad-ai", "greenhouse"),
-
-    # Adept AI — Action models / agents, Greenhouse
-    ("adept", "greenhouse"),
-
-    # Cognition (Devin) — AI SWE agent, Ashby
-    ("cognition", "ashby"),
-
-    # Magic.dev — AI code completion, Greenhouse
-    ("magic-dev", "greenhouse"),
-
-    # Cursor — AI code editor, Ashby (fast-growing)
-    ("anysphere", "ashby"),
-
-    # Windsurf / Codeium — AI coding, Greenhouse
-    ("codeium", "greenhouse"),
-
-    # Poolside AI — Code LLM, Lever
-    ("poolside", "lever"),
-
-    # Imbue — Research + agents, Greenhouse
-    ("imbue", "greenhouse"),
-
-    # Contextual AI — RAG/enterprise LLM, Greenhouse
-    ("contextual-ai", "greenhouse"),
-
-    # Covariant — Robotics + AI, Greenhouse
-    ("covariant", "greenhouse"),
-
-    # Physical Intelligence (pi) — Robotics foundation models, Greenhouse
-    ("physical-intelligence", "greenhouse"),
-
-    # Waymo — Autonomous driving AI, Greenhouse
-    ("waymo", "greenhouse"),
-
-    # Samsara — IoT + AI, Greenhouse, LATAM offices
-    ("samsara", "greenhouse"),
+    company("harvey", "ashby", AI_NATIVE),
+    company("casetext", "greenhouse", AI_NATIVE),
+    company("hippocratic-ai", "greenhouse", AI_NATIVE),
+    company("abridge", "greenhouse", AI_NATIVE),
+    company("nabla", "lever", AI_NATIVE),
+    company("rad-ai", "greenhouse", AI_NATIVE),
+    company("adept", "greenhouse", AI_NATIVE),
+    company("cognition", "ashby", AI_NATIVE),
+    company("magic-dev", "greenhouse", AI_NATIVE),
+    company("anysphere", "ashby", AI_NATIVE),
+    company("codeium", "greenhouse", AI_NATIVE),
+    company("poolside", "lever", AI_NATIVE),
+    company("imbue", "greenhouse", AI_NATIVE),
+    company("contextual-ai", "greenhouse", AI_NATIVE),
+    company("covariant", "greenhouse", AI_NATIVE),
+    company("physical-intelligence", "greenhouse", AI_NATIVE),
+    company("waymo", "greenhouse", AI_NATIVE),
+    company("samsara", "greenhouse", AI_NATIVE),
 
     # ── 📊 DATA/MLOPS PLATFORMS (ADJACENT ROLES) ─────────────────────────────────
-
-    # dbt Labs — Analytics engineering, Greenhouse, remote-first
-    ("dbt-labs", "greenhouse"),
-
-    # Fivetran — Data integration + AI, Greenhouse
-    ("fivetran", "greenhouse"),
-
-    # Airbyte — Open-source data pipelines, Greenhouse
-    ("airbyte", "greenhouse"),
-
-    # Astronomer (Airflow) — ML orchestration, Greenhouse
-    ("astronomer", "greenhouse"),
-
-    # Prefect — Workflow orchestration, Greenhouse
-    ("prefect", "greenhouse"),
-
-    # Tecton — Feature store, Greenhouse
-    ("tecton", "greenhouse"),
-
-    # Arize AI — ML observability, Greenhouse
-    ("arize-ai", "greenhouse"),
-
-    # Fiddler AI — ML monitoring, Greenhouse
-    ("fiddler-ai", "greenhouse"),
-
-    # Arthur AI — ML governance, Greenhouse
-    ("arthur-ai", "greenhouse"),
+    company("dbt-labs", "greenhouse", ENTERPRISE),
+    company("fivetran", "greenhouse", ENTERPRISE),
+    company("airbyte", "greenhouse", ENTERPRISE),
+    company("astronomer", "greenhouse", ENTERPRISE),
+    company("prefect", "greenhouse", ENTERPRISE),
+    company("tecton", "greenhouse", ENTERPRISE),
+    company("arize-ai", "greenhouse", ENTERPRISE),
+    company("fiddler-ai", "greenhouse", ENTERPRISE),
+    company("arthur-ai", "greenhouse", ENTERPRISE),
 
     # ── 🏦 LATAM FINTECH (STRONG AI INVESTMENT, CDMX ADJACENT) ──────────────────
-
-    # Nu Bank — Brazilian neobank, huge ML team, remote LATAM roles
-    ("nubank", "greenhouse"),
-
-    # Belvo — Open banking API (YC-backed, CDMX), Greenhouse
-    ("belvo", "greenhouse"),
-
-    # Kueski — BNPL Mexico, AI credit scoring, Greenhouse
-    ("kueski", "greenhouse"),
-
-    # Stori — CDMX credit card startup, AI/ML team
-    ("stori", "greenhouse"),
-
-    # Arcus — Fintech infra Mexico, Lever
-    ("arcus", "lever"),
-
-    # Merama — LatAm e-commerce, AI ops, Greenhouse
-    ("merama", "greenhouse"),
-
-    # Nowports — Latam logistics AI, Greenhouse
-    ("nowports", "greenhouse"),
+    company("nubank", "greenhouse", LATAM),
+    company("belvo", "greenhouse", LATAM),
+    company("kueski", "greenhouse", LATAM),
+    company("stori", "greenhouse", LATAM),
+    company("arcus", "lever", LATAM),
+    company("merama", "greenhouse", LATAM),
+    company("nowports", "greenhouse", LATAM),
 
     # ── 🧠 ENTERPRISE AI / B2B (STRONG HIRING PIPELINE) ─────────────────────────
+    company("writer", "greenhouse", ENTERPRISE),
+    company("jasper", "greenhouse", ENTERPRISE),
+    company("moveworks", "greenhouse", ENTERPRISE),
+    company("observe-ai", "greenhouse", ENTERPRISE),
+    company("cresta", "greenhouse", ENTERPRISE),
+    company("kore-ai", "greenhouse", ENTERPRISE),
+    company("unstructured", "ashby", ENTERPRISE),
+    company("llamaindex", "ashby", ENTERPRISE),
+    company("langchain", "greenhouse", ENTERPRISE),
+    company("vectara", "greenhouse", ENTERPRISE),
+    company("weaviate", "greenhouse", ENTERPRISE),
+    company("pinecone", "greenhouse", ENTERPRISE),
+    company("qdrant", "greenhouse", ENTERPRISE),
+    company("chroma", "ashby", ENTERPRISE),
+)
 
-    # Writer — Enterprise LLM platform, Greenhouse
-    ("writer", "greenhouse"),
 
-    # Cohere for Enterprise — see cohere above
-    # Jasper AI — Content AI, Greenhouse
-    ("jasper", "greenhouse"),
+def _build_slug_overrides(specs: tuple[CompanySpec, ...]) -> dict[str, dict[str, str]]:
+    overrides: dict[str, dict[str, str]] = {}
+    for spec in specs:
+        if spec.fetch_slug and spec.fetch_slug != spec.slug:
+            overrides.setdefault(spec.ats, {})[spec.slug] = spec.fetch_slug
+    return overrides
 
-    # Moveworks — IT support AI agents, Greenhouse
-    ("moveworks", "greenhouse"),
 
-    # Observe.AI — Contact center AI, Greenhouse
-    ("observe-ai", "greenhouse"),
+def _build_group_slugs(specs: tuple[CompanySpec, ...]) -> dict[str, set[str]]:
+    grouped: dict[str, set[str]] = {group_name: set() for group_name in GROUP_ORDER}
+    for spec in specs:
+        for group_name in spec.groups:
+            grouped.setdefault(group_name, set()).add(spec.slug)
+    return grouped
 
-    # Cresta — Sales AI/coaching, Greenhouse
-    ("cresta", "greenhouse"),
 
-    # Kore.ai — Conversational AI platform, Greenhouse
-    ("kore-ai", "greenhouse"),
+def _build_company_groups(specs: tuple[CompanySpec, ...]) -> dict[str, list[CompanyTuple]]:
+    grouped: dict[str, list[CompanyTuple]] = {group_name: [] for group_name in GROUP_ORDER}
+    for spec in specs:
+        company_tuple = (spec.slug, spec.ats)
+        for group_name in spec.groups:
+            grouped.setdefault(group_name, []).append(company_tuple)
+    return grouped
 
-    # Unstructured — Document parsing for LLMs, Ashby
-    ("unstructured", "ashby"),
 
-    # LlamaIndex — LLM data framework, Ashby
-    ("llamaindex", "ashby"),
+SLUG_OVERRIDES: dict[str, dict[str, str]] = _build_slug_overrides(_COMPANY_SPECS)
 
-    # LangChain — LLM orchestration, Greenhouse
-    ("langchain", "greenhouse"),
+COMPANY_NAME_OVERRIDES: dict[str, str] = {
+    spec.slug: spec.company_name
+    for spec in _COMPANY_SPECS
+    if spec.company_name is not None
+}
 
-    # Vectara — RAG-as-a-service, Greenhouse
-    ("vectara", "greenhouse"),
-
-    # Weaviate — Vector DB, Greenhouse
-    ("weaviate", "greenhouse"),
-
-    # Pinecone — Vector DB, Greenhouse
-    ("pinecone", "greenhouse"),
-
-    # Qdrant — Vector DB, Greenhouse
-    ("qdrant", "greenhouse"),
-
-    # Chroma — Open-source vector DB, Ashby
-    ("chroma", "ashby"),
+COMPANIES: list[CompanyTuple] = [
+    (spec.slug, spec.ats)
+    for spec in _COMPANY_SPECS
 ]
 
+GROUP_SLUGS: dict[str, set[str]] = _build_group_slugs(_COMPANY_SPECS)
 
-GROUP_SLUGS: dict[str, set[str]] = {
-    "cdmx_presence": {
-        "etsy",
-        "kavak",
-        "clip-mx",
-        "konfio",
-        "bitso",
-        "klar",
-        "incode-technologies",
-        "latam",
-        "qualcomm",
-        "google",
-        "salesforce",
-        "wizeline",
-        "softtek",
-        "encora",
-        "scribd",
-        "simplepractice",
-        "sezzle",
-        "totalplay",
-        "mercadolibre",
-        "oracle",
-        "bbva",
-        "rappi",
-    },
-    "latam_remote": {
-        "factored",
-        "arionkoder",
-        "xebia",
-        "quora",
-        "cohere",
-        "handshake",
-        "scaleai",
-        "wandb",
-        "labelbox",
-        "huggingface",
-        "replit",
-        "runwayml",
-        "elevenlabs",
-        "stabilityai",
-        "mistral",
-        "anthropic",
-        "openai",
-        "perplexityai",
-        "characterai",
-        "togetherai",
-        "anyscale",
-        "modal-labs",
-        "replicate",
-        "luma-ai",
-        "glean",
-        "ema",
-        "sierra",
-        "dust",
-        "vapi",
-        "nubank",
-        "belvo",
-        "kueski",
-        "stori",
-        "arcus",
-        "merama",
-        "nowports",
-    },
-    "ai_native_startups": {
-        "harvey",
-        "casetext",
-        "hippocratic-ai",
-        "abridge",
-        "nabla",
-        "rad-ai",
-        "adept",
-        "cognition",
-        "magic-dev",
-        "anysphere",
-        "codeium",
-        "poolside",
-        "imbue",
-        "contextual-ai",
-        "covariant",
-        "physical-intelligence",
-        "waymo",
-        "samsara",
-    },
-    "global_remote_friendly": {
-        "quora",
-        "cohere",
-        "handshake",
-        "factored",
-        "arionkoder",
-        "xebia",
-        "scaleai",
-        "wandb",
-        "labelbox",
-        "huggingface",
-        "replit",
-        "runwayml",
-        "elevenlabs",
-        "stabilityai",
-        "mistral",
-        "anthropic",
-        "openai",
-        "perplexityai",
-        "characterai",
-        "togetherai",
-        "anyscale",
-        "modal-labs",
-        "replicate",
-        "luma-ai",
-        "glean",
-        "ema",
-        "sierra",
-        "dust",
-        "vapi",
-        "intercom",
-        "typeform",
-        "zapier",
-        "zendesk",
-        "brex",
-        "ramp",
-        "mercury",
-        "leapsome",
-    },
-    "relocation_visa": {
-        "deepmind",
-        "palantir",
-        "stripe",
-        "databricks",
-        "snowflake",
-        "datadog",
-        "mongodb",
-        "elastic",
-        "cloudflare",
-        "vercel",
-        "linear",
-        "notion",
-        "intercom",
-        "typeform",
-        "figma",
-        "airtable",
-        "zapier",
-        "hubspot",
-        "zendesk",
-        "twilio",
-        "brex",
-        "ramp",
-        "mercury",
-        "rippling",
-        "lattice",
-        "leapsome",
-    },
-    "enterprise_platforms": {
-        "dbt-labs",
-        "fivetran",
-        "airbyte",
-        "astronomer",
-        "prefect",
-        "tecton",
-        "arize-ai",
-        "fiddler-ai",
-        "arthur-ai",
-        "writer",
-        "jasper",
-        "moveworks",
-        "observe-ai",
-        "cresta",
-        "kore-ai",
-        "unstructured",
-        "llamaindex",
-        "langchain",
-        "vectara",
-        "weaviate",
-        "pinecone",
-        "qdrant",
-        "chroma",
-    },
-}
-
-COMPANY_GROUPS: dict[str, list[tuple[str, str]]] = {
-    group_name: [company for company in COMPANIES if company[0] in slug_set]
-    for group_name, slug_set in GROUP_SLUGS.items()
-}
+COMPANY_GROUPS: dict[str, list[CompanyTuple]] = _build_company_groups(_COMPANY_SPECS)
 
 
 def build_company_list(
     group_names: list[str],
     limit: int | None = None,
-) -> list[tuple[str, str]]:
-    selected: list[tuple[str, str]] = []
-    seen: set[tuple[str, str]] = set()
+) -> list[CompanyTuple]:
+    selected: list[CompanyTuple] = []
+    seen_slugs: set[str] = set()
 
     for group_name in group_names:
-        for company in COMPANY_GROUPS.get(group_name, []):
-            if company in seen:
+        for slug, ats in COMPANY_GROUPS.get(group_name, []):
+            if slug in seen_slugs:
                 continue
-            selected.append(company)
-            seen.add(company)
+            selected.append((slug, ats))
+            seen_slugs.add(slug)
             if limit is not None and len(selected) >= limit:
                 return selected
 
