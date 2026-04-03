@@ -241,7 +241,6 @@
     border-radius: 4px;
     border: 1px solid;
   }
-  .source-badge.linkedin { color: #60a5fa; border-color: #1d4ed8; background: rgba(29,78,216,0.12); }
   .source-badge.indeed   { color: #fb923c; border-color: #c2410c; background: rgba(194,65,12,0.12); }
   .source-badge.career_page { color: var(--teal); border-color: #0f766e; background: rgba(15,118,110,0.12); }
   .source-badge.email    { color: #a78bfa; border-color: #6d28d9; background: rgba(109,40,217,0.12); }
@@ -543,7 +542,7 @@
 // For demo purposes, we generate sample data inline.
 
 function generateSampleData() {
-  const sources   = ['linkedin','indeed','career_page','email'];
+  const sources   = ['indeed','career_page','email'];
   const statuses  = ['applied','applied','applied','interviewing','offer','rejected','error'];
   const titles    = ['AI Consultant','Head of AI','ML Engineer','Automation Lead','AI Strategy Director','LLM Engineer','Product Manager, AI'];
   const companies = ['Clip','Konfío','Kueski','Bitso','Kavak','Nubank MX','Rappi','OXO Digital','Banregio'];
@@ -566,7 +565,7 @@ function generateSampleData() {
       url: '#',
       cover_letter: `Building AI products for Latin American markets for the past 4 years, I've learned that the gap between proof-of-concept and production isn't technical — it's organizational. That's what drew me to the ${title} role at ${co}.\n\nI've led automation initiatives that reduced operational costs by 40% and built custom LLM assistants used by 200+ employees. At ${co}, I'd focus on identifying the two or three workflows where AI creates asymmetric value, then building the team muscle to scale from there.\n\nI'd love to talk through how my consulting experience maps to what you're building.`,
       score_details: JSON.stringify({score, reasons: ['Strong LLM experience', 'Consulting background matches', 'Spanish-market expertise'], missing: ['Enterprise sales', 'Team of >10']}, null, 2),
-      tailored_resume: `# Pedro Ventura\nMexico City · pedro@example.com · linkedin.com/in/pedro\n\n## Experience\n\n**Founder & AI Consultant** · Independent · 2021–present\n- Built 15+ AI automations for mid-sized service businesses in Mexico\n- Delivered LLM-powered copilots (OpenAI + Supabase) reducing ticket volume 60%\n- Led AI audit practice across finance, logistics, and retail sectors\n\n**Previous roles** · ...\n\n## Skills\nPython · OpenAI · Anthropic · LangChain · Supabase · Zapier · Make · SQL`,
+      tailored_resume: `# Pedro Ventura\nMexico City · pedro@example.com · pedro.dev\n\n## Experience\n\n**Founder & AI Consultant** · Independent · 2021–present\n- Built 15+ AI automations for mid-sized service businesses in Mexico\n- Delivered LLM-powered copilots (OpenAI + Supabase) reducing ticket volume 60%\n- Led AI audit practice across finance, logistics, and retail sectors\n\n**Previous roles** · ...\n\n## Skills\nPython · OpenAI · Anthropic · LangChain · Supabase · Zapier · Make · SQL`,
     });
   }
   return apps;
@@ -604,7 +603,7 @@ function render(apps) {
 
   // Source bars
   const maxSrc = Math.max(...Object.values(stats.by_source));
-  const srcColors = {linkedin:'#3b82f6', indeed:'#f97316', career_page:'#14b8a6', email:'#a78bfa'};
+  const srcColors = {indeed:'#f97316', career_page:'#14b8a6', email:'#a78bfa'};
   document.getElementById('source-rows').innerHTML = Object.entries(stats.by_source).map(([src, n]) => `
     <div class="source-row">
       <div class="source-label">${src.replace('_',' ')}</div>

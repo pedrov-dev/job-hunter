@@ -31,15 +31,18 @@ logging.basicConfig(
 log = logging.getLogger("jobbot.main")
 
 # ── Imports (after logging is set up) ─────────────────────────────────────────
-from config import BEHAVIOR, AI, BASE_DIR
+from config import BEHAVIOR
 from core.discovery import discover_all
-from core.tailor    import process_job, get_master_resume
 from core.resume_pdf import md_to_pdf
+from core.tailor import process_job
 from submissions.submitter import submit
 from tracking.tracker import (
-    init_db, record_application, get_stats, send_followup_emails, _rebuild_feed
+    _rebuild_feed,
+    get_stats,
+    init_db,
+    record_application,
+    send_followup_emails,
 )
-
 
 # ── Main pipeline ──────────────────────────────────────────────────────────────
 

@@ -18,15 +18,13 @@ for d in [DATA_DIR, RESUME_DIR, LOG_DIR]:
 
 # ── API Keys (set via environment variables or .env file) ─────────────────────
 import os
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
-OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-
-# LinkedIn credentials (for Easy Apply scraping)
-LINKEDIN_EMAIL    = os.getenv("LINKEDIN_EMAIL", "")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD", "")
 
 # Gmail/SMTP (for email-based applications)
 SMTP_HOST     = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -100,10 +98,9 @@ class BehaviorConfig:
     max_applications_per_run: int = 10
 
     # Channels to use (set False to disable one)
-    use_linkedin:    bool = True
-    use_indeed:      bool = True
+    use_indeed:       bool = True
     use_career_pages: bool = True
-    use_email:       bool = True
+    use_email:        bool = True
 
     # Browser behavior (mimics human pacing)
     min_delay_seconds: float = 3.0

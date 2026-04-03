@@ -24,7 +24,7 @@ def md_to_pdf(markdown_text: str, output_path: Path) -> Path:
     """
     try:
         import markdown
-        from weasyprint import HTML, CSS
+        from weasyprint import CSS, HTML
     except ImportError:
         raise ImportError(
             "Install with: pip install markdown weasyprint\n"

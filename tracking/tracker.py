@@ -8,11 +8,10 @@ Generates the JSON feed consumed by the HTML dashboard.
 from __future__ import annotations
 
 import json
-import sqlite3
 import logging
+import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from config import DATA_DIR
 from core.discovery import JobPosting
@@ -208,9 +207,10 @@ def _rebuild_feed():
 
 def send_followup_emails(dry_run: bool = False):
     """Send follow-up emails for stale applications."""
-    from config import BEHAVIOR, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
     import smtplib
     from email.mime.text import MIMEText
+
+    from config import BEHAVIOR, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER
 
     pending = get_pending_followups(after_days=BEHAVIOR.followup_after_days)
     log.info(f"Follow-ups pending: {len(pending)}")

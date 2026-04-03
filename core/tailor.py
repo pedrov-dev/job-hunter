@@ -10,11 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 from openai import OpenAI
 
-from config import AI, SEARCH, BASE_DIR, RESUME_DIR
+from config import AI, BASE_DIR, RESUME_DIR
 
 log = logging.getLogger("jobbot.tailor")
 
@@ -32,6 +31,7 @@ def get_master_resume() -> str:
 
 # ── OpenAI client ──────────────────────────────────────────────────────────────
 from config import OPENAI_API_KEY
+
 _client: OpenAI | None = None
 
 def get_client() -> OpenAI:
@@ -138,6 +138,7 @@ def write_cover_letter(job_description: str, resume: str, company: str, title: s
 # ── Unified tailor pipeline ────────────────────────────────────────────────────
 
 from core.discovery import JobPosting
+
 
 def process_job(job: JobPosting) -> dict | None:
     """
