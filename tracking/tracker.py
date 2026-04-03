@@ -11,7 +11,7 @@ import json
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from config import DATA_DIR
 from src.discovery import JobPosting
@@ -21,6 +21,10 @@ log = logging.getLogger("jobbot.tracking")
 
 DB_PATH   = DATA_DIR / "applications.db"
 FEED_PATH = DATA_DIR / "dashboard_feed.json"
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 # ── Database setup ─────────────────────────────────────────────────────────────
@@ -81,6 +85,8 @@ def init_db():
         conn.executescript(SCHEMA)
         _ensure_column(conn, "applications", "resume_variant", "TEXT DEFAULT ''")
     log.info(f"DB initialized at {DB_PATH}")
+    if not FEED_PATH.exists():
+        _rebuild_feed()
 
 
 # ── Write operations ───────────────────────────────────────────────────────────
@@ -93,7 +99,7 @@ def record_application(
     score_details: dict | None = None,
     resume_variant: str = "",
 ):
-    now = datetime.utcnow().isoformat()
+    now = _utc_now_iso()
     with get_conn() as conn:
         conn.execute("""
             INSERT OR REPLACE INTO applications
@@ -125,7 +131,7 @@ def record_application(
 
 def update_status(job_id: str, status: str, notes: str = ""):
     """Update application status (e.g. 'interviewing', 'rejected', 'offer')."""
-    now = datetime.utcnow().isoformat()
+    now = _utc_now_iso()
     with get_conn() as conn:
         conn.execute("""
             UPDATE applications SET status=?, last_updated=?, notes=? WHERE id=?
@@ -137,11 +143,12 @@ def update_status(job_id: str, status: str, notes: str = ""):
 
 
 def mark_followup_sent(job_id: str):
-    now = datetime.utcnow().isoformat()
+    now = _utc_now_iso()
     with get_conn() as conn:
         conn.execute("""
             UPDATE applications SET followup_sent=1, followup_date=? WHERE id=?
         """, (now, job_id))
+    _rebuild_feed()
 
 
 # ── Read operations ────────────────────────────────────────────────────────────
@@ -156,7 +163,7 @@ def get_all_applications() -> list[dict]:
 
 def get_pending_followups(after_days: int = 7) -> list[dict]:
     """Return applications that haven't received a follow-up and are >N days old."""
-    cutoff = (datetime.utcnow() - timedelta(days=after_days)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=after_days)).isoformat()
     with get_conn() as conn:
         rows = conn.execute("""
             SELECT * FROM applications
@@ -215,16 +222,21 @@ def get_stats() -> dict:
 
 # ── Dashboard feed ─────────────────────────────────────────────────────────────
 
+def build_dashboard_feed() -> dict:
+    """Return the JSON payload that powers the HTML dashboard."""
+    return {
+        "generated_at": _utc_now_iso(),
+        "stats": get_stats(),
+        "applications": get_all_applications(),
+    }
+
+
 def _rebuild_feed():
     """Rebuild the JSON file that powers the HTML dashboard."""
-    stats = get_stats()
-    apps  = get_all_applications()
-    feed  = {
-        "generated_at": datetime.utcnow().isoformat(),
-        "stats": stats,
-        "applications": apps,
-    }
-    FEED_PATH.write_text(json.dumps(feed, indent=2))
+    FEED_PATH.write_text(
+        json.dumps(build_dashboard_feed(), indent=2),
+        encoding="utf-8",
+    )
 
 
 # ── Follow-up email sender ─────────────────────────────────────────────────────

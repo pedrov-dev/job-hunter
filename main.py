@@ -8,6 +8,7 @@ JobBot entry point. Run this to start a full application cycle:
   python main.py --followups     # only send follow-up emails
   python main.py --stats         # print stats and exit
   python main.py --limit 5       # apply to max 5 jobs
+  python main.py --dashboard     # launch the live dashboard
 """
 
 # ruff: noqa: E402
@@ -65,6 +66,7 @@ async def run(
     log.info("=" * 60)
 
     init_db()
+    _rebuild_feed()
     max_apps = limit or BEHAVIOR.max_applications_per_run
 
     # ── 1. Discover ────────────────────────────────────────────────────────────
@@ -184,6 +186,7 @@ async def run(
 
 def print_stats():
     init_db()
+    _rebuild_feed()
     s = get_stats()
     print(f"""
 ╔══════════════════════════════╗
@@ -217,9 +220,18 @@ if __name__ == "__main__":
         default=SWEEPS.active_tier,
         help="Choose which company-priority tier to sweep",
     )
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Launch the local dashboard server",
+    )
     args = parser.parse_args()
 
-    if args.stats:
+    if args.dashboard:
+        from dashboard_server import run_dashboard_server
+
+        run_dashboard_server()
+    elif args.stats:
         print_stats()
     elif args.followups:
         init_db()

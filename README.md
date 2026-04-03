@@ -84,7 +84,13 @@ The app writes local state and generated files under the repository root:
 
 ## Dashboard
 
-The dashboard UI lives in [ui/dashboard.html](ui/dashboard.html). It is a static front end that reads the JSON feed produced by the tracker.
+The dashboard UI lives in [ui/dashboard.html](ui/dashboard.html). Launch the live dashboard server with:
+
+```powershell
+python main.py --dashboard
+```
+
+That serves the UI at `http://127.0.0.1:8000/`, reads the real JSON feed from the tracker, lets you kick off a run from the browser, and persists manual status changes back into SQLite.
 
 ## Project Layout
 

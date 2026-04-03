@@ -162,27 +162,21 @@ class ResumeVariant:
 class ResumeConfig:
     variants: list[ResumeVariant] = field(default_factory=lambda: [
         ResumeVariant(
-            key="general_ai",
-            filename="general_ai.pdf",
+            key="ai_engineer",
+            filename="AI_Engineer_CV.pdf",
             title_keywords=[
-                "ai consultant",
-                "machine learning consultant",
-                "llm engineer",
+                "AI Engineer",
+                "AI Solutions Architect",
+                "LLM Engineer",
+                "GenAI Product Engineer",
+                "Conversational AI Engineer",
+                "Machine Learning Consultant",
+                "Automation Consultant",
+                "AI Product Manager",
             ],
             industries=["technology", "saas", "consulting"],
             is_default=True,
-        ),
-        ResumeVariant(
-            key="ai_leadership",
-            filename="ai_leadership.pdf",
-            title_keywords=[
-                "head of ai",
-                "ai strategy lead",
-                "director of ai",
-                "ai lead",
-            ],
-            industries=["financial services", "fintech", "healthcare"],
-        ),
+        )
     ])
 
 
@@ -207,7 +201,7 @@ class BehaviorConfig:
     max_applications_per_run: int = 10
 
     # Channels to use (set False to disable one)
-    use_indeed:       bool = True
+    use_indeed:       bool = False
     use_career_pages: bool = True
     use_email:        bool = True
 

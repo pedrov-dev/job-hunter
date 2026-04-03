@@ -86,6 +86,7 @@
     transition: opacity 0.15s;
   }
   .run-btn:hover { opacity: 0.85; }
+  .run-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .last-run {
     font-family: var(--mono);
@@ -444,7 +445,7 @@
   <h1>JobBot</h1>
   <div class="header-right">
     <span class="last-run" id="last-run-label">Loading...</span>
-    <button class="run-btn" onclick="alert('Run: python main.py from your terminal')">Run now ↗</button>
+    <button class="run-btn" id="run-btn" onclick="runNow()">Run now ↗</button>
   </div>
 </header>
 
@@ -537,167 +538,262 @@
 </div>
 
 <script>
-// ── Data ──────────────────────────────────────────────────────────────────────
-// In production, replace this with: fetch('data/dashboard_feed.json')
-// For demo purposes, we generate sample data inline.
-
-function generateSampleData() {
-  const sources   = ['indeed','career_page','email'];
-  const statuses  = ['applied','applied','applied','interviewing','offer','rejected','error'];
-  const titles    = ['AI Consultant','Head of AI','ML Engineer','Automation Lead','AI Strategy Director','LLM Engineer','Product Manager, AI'];
-  const companies = ['Clip','Konfío','Kueski','Bitso','Kavak','Nubank MX','Rappi','OXO Digital','Banregio'];
-  const apps = [];
-
-  for (let i = 0; i < 34; i++) {
-    const src   = sources[Math.floor(Math.random() * sources.length)];
-    const title = titles[Math.floor(Math.random() * titles.length)];
-    const co    = companies[Math.floor(Math.random() * companies.length)];
-    const score = Math.floor(Math.random() * 35) + 60;
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const daysAgo = Math.floor(Math.random() * 21);
-    const d = new Date(); d.setDate(d.getDate() - daysAgo);
-
-    apps.push({
-      id: 'job_' + i,
-      title, company: co, source: src,
-      match_score: score, status,
-      applied_at: d.toISOString(),
-      url: '#',
-      cover_letter: `Building AI products for Latin American markets for the past 4 years, I've learned that the gap between proof-of-concept and production isn't technical — it's organizational. That's what drew me to the ${title} role at ${co}.\n\nI've led automation initiatives that reduced operational costs by 40% and built custom LLM assistants used by 200+ employees. At ${co}, I'd focus on identifying the two or three workflows where AI creates asymmetric value, then building the team muscle to scale from there.\n\nI'd love to talk through how my consulting experience maps to what you're building.`,
-      score_details: JSON.stringify({score, reasons: ['Strong LLM experience', 'Consulting background matches', 'Spanish-market expertise'], missing: ['Enterprise sales', 'Team of >10']}, null, 2),
-      resume_variant: ['general_ai', 'ai_leadership', 'automation_ops'][i % 3],
-      tailored_resume: `# Pedro Ventura\nMexico City · pedro@example.com · pedro.dev\n\n## Experience\n\n**Founder & AI Consultant** · Independent · 2021–present\n- Built 15+ AI automations for mid-sized service businesses in Mexico\n- Delivered LLM-powered copilots (OpenAI + Supabase) reducing ticket volume 60%\n- Led AI audit practice across finance, logistics, and retail sectors\n\n**Previous roles** · ...\n\n## Skills\nPython · OpenAI · Anthropic · LangChain · Supabase · Zapier · Make · SQL`,
-    });
-  }
-  return apps;
-}
-
-const SAMPLE = generateSampleData();
+const API_BASE = '/api';
 let currentFilter = 'all';
 let currentSearch = '';
 let activeJobId = null;
+let refreshTimer = null;
+let dashboardFeed = {
+  generated_at: null,
+  stats: {
+    total: 0,
+    applied: 0,
+    interviewing: 0,
+    offers: 0,
+    rejected: 0,
+    errors: 0,
+    avg_score: 0,
+    by_source: {},
+  },
+  applications: [],
+  run_status: { running: false },
+  error: '',
+};
 
-function getStats(apps) {
+function normalizeStats(stats = {}) {
   return {
-    total:       apps.length,
-    applied:     apps.filter(a => a.status === 'applied').length,
-    interviewing:apps.filter(a => a.status === 'interviewing').length,
-    offers:      apps.filter(a => a.status === 'offer').length,
-    rejected:    apps.filter(a => a.status === 'rejected').length,
-    errors:      apps.filter(a => a.status === 'error').length,
-    avg_score:   Math.round(apps.reduce((s,a) => s + a.match_score, 0) / apps.length),
-    by_source: apps.reduce((acc, a) => { acc[a.source] = (acc[a.source]||0)+1; return acc; }, {}),
+    total: 0,
+    applied: 0,
+    interviewing: 0,
+    offers: 0,
+    rejected: 0,
+    errors: 0,
+    avg_score: 0,
+    by_source: {},
+    ...stats,
+    by_source: stats.by_source || {},
   };
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
-function render(apps) {
-  const stats = getStats(apps);
-
-  document.getElementById('s-total').textContent       = stats.total;
-  document.getElementById('s-applied').textContent     = stats.applied;
-  document.getElementById('s-interviewing').textContent= stats.interviewing;
-  document.getElementById('s-offers').textContent      = stats.offers;
-  document.getElementById('s-rejected').textContent    = stats.rejected;
-  document.getElementById('s-score').textContent       = stats.avg_score;
-  document.getElementById('last-run-label').textContent = 'Last run: just now';
-
-  // Source bars
-  const maxSrc = Math.max(...Object.values(stats.by_source));
-  const srcColors = {indeed:'#f97316', career_page:'#14b8a6', email:'#a78bfa'};
-  document.getElementById('source-rows').innerHTML = Object.entries(stats.by_source).map(([src, n]) => `
-    <div class="source-row">
-      <div class="source-label">${src.replace('_',' ')}</div>
-      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(n/maxSrc*100)}%;background:${srcColors[src]||'#6366f1'}"></div></div>
-      <div class="source-count">${n}</div>
-    </div>
-  `).join('');
-
-  // Pipeline bars
-  const pipeline = [
-    {label:'applied',      n: stats.applied,      color:'#818cf8'},
-    {label:'interviewing', n: stats.interviewing,  color:'#14b8a6'},
-    {label:'offer',        n: stats.offers,        color:'#22c55e'},
-    {label:'rejected',     n: stats.rejected,      color:'#ef4444'},
-  ];
-  const maxPipe = Math.max(...pipeline.map(p => p.n), 1);
-  document.getElementById('pipeline-rows').innerHTML = pipeline.map(p => `
-    <div class="source-row">
-      <div class="source-label">${p.label}</div>
-      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(p.n/maxPipe*100)}%;background:${p.color}"></div></div>
-      <div class="source-count">${p.n}</div>
-    </div>
-  `).join('');
-
-  renderTable(apps);
+function getApps() {
+  return Array.isArray(dashboardFeed.applications) ? dashboardFeed.applications : [];
 }
 
-function renderTable(apps) {
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+function formatTimestamp(value) {
+  if (!value) return 'never';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+  });
+}
+
+function formatDateOnly(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function prettyText(value) {
+  if (!value) return '(none)';
+  if (typeof value !== 'string') {
+    return JSON.stringify(value, null, 2);
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return value;
+  }
+}
+
+function setRunButtonState(running) {
+  const button = document.getElementById('run-btn');
+  if (!button) return;
+  button.disabled = running;
+  button.textContent = running ? 'Running…' : 'Run now ↗';
+}
+
+function updateLastRunLabel() {
+  const label = document.getElementById('last-run-label');
+  const runStatus = dashboardFeed.run_status || {};
+
+  if (runStatus.running && runStatus.last_started_at) {
+    label.textContent = `Run started ${formatTimestamp(runStatus.last_started_at)}`;
+    return;
+  }
+  if (runStatus.running) {
+    label.textContent = 'Run in progress…';
+    return;
+  }
+  if (runStatus.last_finished_at) {
+    const suffix = typeof runStatus.last_returncode === 'number'
+      ? ` · ${runStatus.last_returncode === 0 ? 'ok' : `exit ${runStatus.last_returncode}`}`
+      : '';
+    label.textContent = `Last run ${formatTimestamp(runStatus.last_finished_at)}${suffix}`;
+    return;
+  }
+  if (dashboardFeed.generated_at) {
+    label.textContent = `Feed updated ${formatTimestamp(dashboardFeed.generated_at)}`;
+    return;
+  }
+  label.textContent = dashboardFeed.error || 'No runs yet';
+}
+
+function applyFeed(payload = {}) {
+  dashboardFeed = {
+    ...dashboardFeed,
+    generated_at: payload.generated_at ?? dashboardFeed.generated_at,
+    stats: normalizeStats(payload.stats || dashboardFeed.stats),
+    applications: Array.isArray(payload.applications) ? payload.applications : getApps(),
+    run_status: payload.run_status || dashboardFeed.run_status || { running: false },
+    error: payload.error || '',
+  };
+  render();
+}
+
+function renderSourceRows(bySource) {
+  const sourceRows = document.getElementById('source-rows');
+  const entries = Object.entries(bySource || {});
+  if (!entries.length) {
+    sourceRows.innerHTML = '<div class="empty-state"><p>No source data yet</p></div>';
+    return;
+  }
+
+  const maxSrc = Math.max(...entries.map(([, count]) => count), 1);
+  const srcColors = { indeed: '#f97316', career_page: '#14b8a6', email: '#a78bfa' };
+  sourceRows.innerHTML = entries.map(([src, count]) => `
+    <div class="source-row">
+      <div class="source-label">${escapeHtml(src.replace('_', ' '))}</div>
+      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(count / maxSrc * 100)}%;background:${srcColors[src] || '#6366f1'}"></div></div>
+      <div class="source-count">${count}</div>
+    </div>
+  `).join('');
+}
+
+function renderPipelineRows(stats) {
+  const pipeline = [
+    { label: 'applied', n: stats.applied, color: '#818cf8' },
+    { label: 'interviewing', n: stats.interviewing, color: '#14b8a6' },
+    { label: 'offer', n: stats.offers, color: '#22c55e' },
+    { label: 'rejected', n: stats.rejected, color: '#ef4444' },
+  ];
+  const maxPipe = Math.max(...pipeline.map(item => item.n), 1);
+  document.getElementById('pipeline-rows').innerHTML = pipeline.map(item => `
+    <div class="source-row">
+      <div class="source-label">${item.label}</div>
+      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(item.n / maxPipe * 100)}%;background:${item.color}"></div></div>
+      <div class="source-count">${item.n}</div>
+    </div>
+  `).join('');
+}
+
+function render() {
+  const stats = normalizeStats(dashboardFeed.stats);
+  document.getElementById('s-total').textContent = stats.total;
+  document.getElementById('s-applied').textContent = stats.applied;
+  document.getElementById('s-interviewing').textContent = stats.interviewing;
+  document.getElementById('s-offers').textContent = stats.offers;
+  document.getElementById('s-rejected').textContent = stats.rejected;
+  document.getElementById('s-score').textContent = stats.avg_score || 0;
+
+  renderSourceRows(stats.by_source);
+  renderPipelineRows(stats);
+  setRunButtonState(Boolean(dashboardFeed.run_status && dashboardFeed.run_status.running));
+  updateLastRunLabel();
+  renderTable();
+}
+
+function renderTable() {
+  const apps = getApps();
   let filtered = apps;
-  if (currentFilter !== 'all') filtered = filtered.filter(a => a.status === currentFilter);
+
+  if (currentFilter !== 'all') {
+    filtered = filtered.filter(app => app.status === currentFilter);
+  }
   if (currentSearch) {
     const q = currentSearch.toLowerCase();
-    filtered = filtered.filter(a =>
-      a.title.toLowerCase().includes(q) || a.company.toLowerCase().includes(q)
+    filtered = filtered.filter(app =>
+      String(app.title || '').toLowerCase().includes(q) ||
+      String(app.company || '').toLowerCase().includes(q)
     );
   }
 
   const tbody = document.getElementById('apps-tbody');
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="big">0</div><p>No applications match this filter</p></div></td></tr>`;
+    const message = dashboardFeed.error
+      ? 'Start the live dashboard with `python main.py --dashboard`.'
+      : apps.length
+        ? 'No applications match this filter'
+        : 'No applications yet. Click “Run now” to start a live sweep.';
+
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="big">${dashboardFeed.error ? '!' : '0'}</div><p>${message}</p></div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = filtered.map(app => {
-    const d = new Date(app.applied_at);
-    const dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    const source = String(app.source || 'unknown');
+    const score = Number(app.match_score || 0);
+    const status = String(app.status || 'applied');
+
     return `
       <tr onclick="openPanel('${app.id}')">
         <td>
-          <div class="job-title">${app.title}</div>
-          <div class="job-company">${app.company}</div>
+          <div class="job-title">${escapeHtml(app.title || 'Untitled role')}</div>
+          <div class="job-company">${escapeHtml(app.company || 'Unknown company')}</div>
         </td>
-        <td><span class="source-badge ${app.source}">${app.source.replace('_',' ')}</span></td>
+        <td><span class="source-badge ${escapeHtml(source)}">${escapeHtml(source.replace('_', ' '))}</span></td>
         <td>
           <div class="score-bar-wrap">
-            <div class="score-bar"><div class="score-fill" style="width:${app.match_score}%"></div></div>
-            <span class="score-num">${app.match_score}</span>
+            <div class="score-bar"><div class="score-fill" style="width:${Math.max(0, Math.min(score, 100))}%"></div></div>
+            <span class="score-num">${score || 0}</span>
           </div>
         </td>
-        <td><span class="status-pill ${app.status}">${app.status}</span></td>
-        <td class="date-cell">${dateStr}</td>
+        <td><span class="status-pill ${escapeHtml(status)}">${escapeHtml(status)}</span></td>
+        <td class="date-cell">${formatDateOnly(app.applied_at)}</td>
       </tr>
     `;
   }).join('');
 }
 
-// ── Filters ───────────────────────────────────────────────────────────────────
 function setFilter(el) {
-  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
   el.classList.add('active');
   currentFilter = el.dataset.status;
-  renderTable(SAMPLE);
+  renderTable();
 }
 
 function filterApps() {
-  currentSearch = document.getElementById('search-input').value;
-  renderTable(SAMPLE);
+  currentSearch = document.getElementById('search-input').value.trim();
+  renderTable();
 }
 
-// ── Detail panel ──────────────────────────────────────────────────────────────
 function openPanel(id) {
-  const app = SAMPLE.find(a => a.id === id);
+  const app = getApps().find(item => item.id === id);
   if (!app) return;
   activeJobId = id;
 
-  document.getElementById('dp-title').textContent   = app.title;
-  const variant = app.resume_variant ? ` · resume: ${app.resume_variant}` : '';
-  document.getElementById('dp-company').textContent = `${app.company} · ${app.source}${variant}`;
+  document.getElementById('dp-title').textContent = app.title || 'Untitled role';
+  const meta = [app.company || 'Unknown company', app.source || 'unknown'];
+  if (app.resume_variant) meta.push(`resume: ${app.resume_variant}`);
+  if (app.location) meta.push(app.location);
+  document.getElementById('dp-company').textContent = meta.join(' · ');
   document.getElementById('dp-status-pill').innerHTML = `<span class="status-pill ${app.status}">${app.status}</span>`;
-  document.getElementById('dp-cover').textContent    = app.cover_letter || '(none)';
-  document.getElementById('dp-resume').textContent   = app.tailored_resume || '(none)';
-  document.getElementById('dp-score-details').textContent = app.score_details || '(none)';
+  document.getElementById('dp-cover').textContent = app.cover_letter || '(none)';
+  document.getElementById('dp-resume').textContent = app.tailored_resume || '(none)';
+  document.getElementById('dp-score-details').textContent = prettyText(app.score_details);
 
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('overlay').classList.add('open');
@@ -709,20 +805,104 @@ function closePanel() {
   activeJobId = null;
 }
 
-function changeStatus(status) {
+async function changeStatus(status) {
   if (!activeJobId) return;
-  const app = SAMPLE.find(a => a.id === activeJobId);
-  if (app) {
-    app.status = status;
-    document.getElementById('dp-status-pill').innerHTML = `<span class="status-pill ${status}">${status}</span>`;
-    renderTable(SAMPLE);
+
+  try {
+    const response = await fetch(`${API_BASE}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: activeJobId, status }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+    applyFeed(payload);
+    openPanel(activeJobId);
+  } catch (error) {
+    alert(`Could not update status: ${error.message}`);
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+async function loadDashboard(showLoading = false) {
+  if (showLoading) {
+    document.getElementById('last-run-label').textContent = 'Loading dashboard…';
+  }
 
-// In production: fetch('data/dashboard_feed.json').then(r=>r.json()).then(d => render(d.applications))
-render(SAMPLE);
+  try {
+    const response = await fetch(`${API_BASE}/feed?ts=${Date.now()}`, { cache: 'no-store' });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+    applyFeed({ ...payload, error: '' });
+    if (dashboardFeed.run_status && dashboardFeed.run_status.running) {
+      ensureRunPolling();
+    }
+  } catch (error) {
+    console.error('Dashboard load failed', error);
+    applyFeed({
+      stats: dashboardFeed.stats,
+      applications: dashboardFeed.applications,
+      run_status: dashboardFeed.run_status,
+      error: 'Dashboard offline',
+    });
+  }
+}
+
+function ensureRunPolling() {
+  if (refreshTimer) return;
+  refreshTimer = window.setInterval(async () => {
+    await loadDashboard();
+    if (!dashboardFeed.run_status || !dashboardFeed.run_status.running) {
+      window.clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }, 5000);
+}
+
+async function runNow() {
+  setRunButtonState(true);
+  document.getElementById('last-run-label').textContent = 'Starting run…';
+
+  try {
+    const response = await fetch(`${API_BASE}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sweep_tier: 'daily' }),
+    });
+    const payload = await response.json();
+
+    if (response.status === 409) {
+      applyFeed({ run_status: payload.run_status, error: '' });
+      ensureRunPolling();
+      return;
+    }
+
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
+    }
+
+    applyFeed({ run_status: payload.run_status, error: '' });
+    ensureRunPolling();
+    await loadDashboard();
+  } catch (error) {
+    console.error('Run start failed', error);
+    setRunButtonState(false);
+    alert(`Could not start JobBot: ${error.message}`);
+  }
+}
+
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closePanel();
+});
+
+window.setInterval(() => {
+  loadDashboard();
+}, 15000);
+
+loadDashboard(true);
 </script>
 </body>
 </html>
