@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobBot Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0d0d0f;
+    --surface: #141417;
+    --border:  #222228;
+    --dim:     #2a2a32;
+    --text:    #e8e8ec;
+    --muted:   #6b6b7a;
+    --accent:  #6366f1;
+    --green:   #22c55e;
+    --amber:   #f59e0b;
+    --red:     #ef4444;
+    --blue:    #3b82f6;
+    --teal:    #14b8a6;
+    --mono:    'DM Mono', monospace;
+    --sans:    'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .logo {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .run-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .run-btn:hover { opacity: 0.85; }
+
+  .last-run {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 32px;
+  }
+
+  /* ── Stat cards ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.blue  { color: var(--blue);  }
+  .stat-value.red   { color: var(--red);   }
+  .stat-value.teal  { color: var(--teal);  }
+  .stat-value.muted { color: var(--muted); }
+
+  /* ── Section headers ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* ── Applications table ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .filter-bar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .filter-bar input {
+    background: var(--dim);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    width: 200px;
+    outline: none;
+  }
+  .filter-bar input:focus { border-color: var(--accent); }
+
+  .filter-pill {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all 0.1s;
+  }
+  .filter-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  td {
+    padding: 11px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .job-title { font-weight: 500; }
+  .job-company { color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  .source-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .source-badge.linkedin { color: #60a5fa; border-color: #1d4ed8; background: rgba(29,78,216,0.12); }
+  .source-badge.indeed   { color: #fb923c; border-color: #c2410c; background: rgba(194,65,12,0.12); }
+  .source-badge.career_page { color: var(--teal); border-color: #0f766e; background: rgba(15,118,110,0.12); }
+  .source-badge.email    { color: #a78bfa; border-color: #6d28d9; background: rgba(109,40,217,0.12); }
+
+  .status-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .status-pill.applied     { background: rgba(99,102,241,0.15); color: #818cf8; }
+  .status-pill.interviewing{ background: rgba(20,184,166,0.15); color: var(--teal); }
+  .status-pill.offer       { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .status-pill.rejected    { background: rgba(239,68,68,0.12);  color: var(--red); }
+  .status-pill.error       { background: rgba(107,114,128,0.15);color: var(--muted); }
+
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar {
+    width: 60px; height: 4px;
+    background: var(--dim);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--teal));
+  }
+  .score-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 26px;
+  }
+
+  .date-cell {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Source breakdown ── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .source-rows { margin-top: 14px; }
+
+  .source-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .source-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    width: 90px;
+    flex-shrink: 0;
+  }
+
+  .source-track {
+    flex: 1;
+    height: 6px;
+    background: var(--dim);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .source-track-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .source-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 24px;
+    text-align: right;
+  }
+
+  /* ── Detail panel ── */
+  #detail-panel {
+    display: none;
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 460px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 24px;
+  }
+
+  #detail-panel.open { display: block; }
+
+  .panel-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--dim);
+    border: none;
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .panel-title { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .panel-company { color: var(--muted); margin-bottom: 16px; }
+
+  .panel-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .panel-section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .panel-text {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .status-changer {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .status-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--dim);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all 0.1s;
+  }
+  .status-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+  }
+  .overlay.open { display: block; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .big { font-family: var(--mono); font-size: 48px; opacity: 0.3; }
+  .empty-state p { margin-top: 12px; font-size: 13px; }
+
+  @media (max-width: 700px) {
+    main { padding: 16px; }
+    .charts-row { grid-template-columns: 1fr; }
+    #detail-panel { width: 100%; }
+    thead th:nth-child(n+4) { display: none; }
+    td:nth-child(n+4) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">jb</div>
+  <h1>JobBot</h1>
+  <div class="header-right">
+    <span class="last-run" id="last-run-label">Loading...</span>
+    <button class="run-btn" onclick="alert('Run: python main.py from your terminal')">Run now ↗</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Stats row -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total applied</div><div class="stat-value" id="s-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value blue" id="s-applied">—</div></div>
+    <div class="stat-card"><div class="stat-label">Interviewing</div><div class="stat-value teal" id="s-interviewing">—</div></div>
+    <div class="stat-card"><div class="stat-label">Offers</div><div class="stat-value green" id="s-offers">—</div></div>
+    <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value red" id="s-rejected">—</div></div>
+    <div class="stat-card"><div class="stat-label">Avg score</div><div class="stat-value amber" id="s-score">—</div></div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="section-title">By source</div>
+      <div class="source-rows" id="source-rows"></div>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">Pipeline</div>
+      <div class="source-rows" id="pipeline-rows"></div>
+    </div>
+  </div>
+
+  <!-- Applications table -->
+  <div class="section-header">
+    <span class="section-title">Applications</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Search title, company..." oninput="filterApps()">
+      <button class="filter-pill active" data-status="all" onclick="setFilter(this)">All</button>
+      <button class="filter-pill" data-status="applied" onclick="setFilter(this)">Applied</button>
+      <button class="filter-pill" data-status="interviewing" onclick="setFilter(this)">Interviewing</button>
+      <button class="filter-pill" data-status="offer" onclick="setFilter(this)">Offers</button>
+      <button class="filter-pill" data-status="rejected" onclick="setFilter(this)">Rejected</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Source</th>
+          <th>Score</th>
+          <th>Status</th>
+          <th>Applied</th>
+        </tr>
+      </thead>
+      <tbody id="apps-tbody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<!-- Detail panel -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div id="detail-panel">
+  <button class="panel-close" onclick="closePanel()">×</button>
+  <div class="panel-title" id="dp-title"></div>
+  <div class="panel-company" id="dp-company"></div>
+
+  <div class="panel-section">
+    <div class="panel-section-label">Status</div>
+    <div id="dp-status-pill"></div>
+    <div class="status-changer">
+      <button class="status-btn" onclick="changeStatus('applied')">Applied</button>
+      <button class="status-btn" onclick="changeStatus('interviewing')">Interviewing</button>
+      <button class="status-btn" onclick="changeStatus('offer')">Offer</button>
+      <button class="status-btn" onclick="changeStatus('rejected')">Rejected</button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-label">Cover letter</div>
+    <div class="panel-text" id="dp-cover"></div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-label">Score details</div>
+    <div class="panel-text" id="dp-score-details"></div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-label">Tailored resume preview</div>
+    <div class="panel-text" id="dp-resume"></div>
+  </div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+// In production, replace this with: fetch('data/dashboard_feed.json')
+// For demo purposes, we generate sample data inline.
+
+function generateSampleData() {
+  const sources   = ['linkedin','indeed','career_page','email'];
+  const statuses  = ['applied','applied','applied','interviewing','offer','rejected','error'];
+  const titles    = ['AI Consultant','Head of AI','ML Engineer','Automation Lead','AI Strategy Director','LLM Engineer','Product Manager, AI'];
+  const companies = ['Clip','Konfío','Kueski','Bitso','Kavak','Nubank MX','Rappi','OXO Digital','Banregio'];
+  const apps = [];
+
+  for (let i = 0; i < 34; i++) {
+    const src   = sources[Math.floor(Math.random() * sources.length)];
+    const title = titles[Math.floor(Math.random() * titles.length)];
+    const co    = companies[Math.floor(Math.random() * companies.length)];
+    const score = Math.floor(Math.random() * 35) + 60;
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const daysAgo = Math.floor(Math.random() * 21);
+    const d = new Date(); d.setDate(d.getDate() - daysAgo);
+
+    apps.push({
+      id: 'job_' + i,
+      title, company: co, source: src,
+      match_score: score, status,
+      applied_at: d.toISOString(),
+      url: '#',
+      cover_letter: `Building AI products for Latin American markets for the past 4 years, I've learned that the gap between proof-of-concept and production isn't technical — it's organizational. That's what drew me to the ${title} role at ${co}.\n\nI've led automation initiatives that reduced operational costs by 40% and built custom LLM assistants used by 200+ employees. At ${co}, I'd focus on identifying the two or three workflows where AI creates asymmetric value, then building the team muscle to scale from there.\n\nI'd love to talk through how my consulting experience maps to what you're building.`,
+      score_details: JSON.stringify({score, reasons: ['Strong LLM experience', 'Consulting background matches', 'Spanish-market expertise'], missing: ['Enterprise sales', 'Team of >10']}, null, 2),
+      tailored_resume: `# Pedro Ventura\nMexico City · pedro@example.com · linkedin.com/in/pedro\n\n## Experience\n\n**Founder & AI Consultant** · Independent · 2021–present\n- Built 15+ AI automations for mid-sized service businesses in Mexico\n- Delivered LLM-powered copilots (OpenAI + Supabase) reducing ticket volume 60%\n- Led AI audit practice across finance, logistics, and retail sectors\n\n**Previous roles** · ...\n\n## Skills\nPython · OpenAI · Anthropic · LangChain · Supabase · Zapier · Make · SQL`,
+    });
+  }
+  return apps;
+}
+
+const SAMPLE = generateSampleData();
+let currentFilter = 'all';
+let currentSearch = '';
+let activeJobId = null;
+
+function getStats(apps) {
+  return {
+    total:       apps.length,
+    applied:     apps.filter(a => a.status === 'applied').length,
+    interviewing:apps.filter(a => a.status === 'interviewing').length,
+    offers:      apps.filter(a => a.status === 'offer').length,
+    rejected:    apps.filter(a => a.status === 'rejected').length,
+    errors:      apps.filter(a => a.status === 'error').length,
+    avg_score:   Math.round(apps.reduce((s,a) => s + a.match_score, 0) / apps.length),
+    by_source: apps.reduce((acc, a) => { acc[a.source] = (acc[a.source]||0)+1; return acc; }, {}),
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(apps) {
+  const stats = getStats(apps);
+
+  document.getElementById('s-total').textContent       = stats.total;
+  document.getElementById('s-applied').textContent     = stats.applied;
+  document.getElementById('s-interviewing').textContent= stats.interviewing;
+  document.getElementById('s-offers').textContent      = stats.offers;
+  document.getElementById('s-rejected').textContent    = stats.rejected;
+  document.getElementById('s-score').textContent       = stats.avg_score;
+  document.getElementById('last-run-label').textContent = 'Last run: just now';
+
+  // Source bars
+  const maxSrc = Math.max(...Object.values(stats.by_source));
+  const srcColors = {linkedin:'#3b82f6', indeed:'#f97316', career_page:'#14b8a6', email:'#a78bfa'};
+  document.getElementById('source-rows').innerHTML = Object.entries(stats.by_source).map(([src, n]) => `
+    <div class="source-row">
+      <div class="source-label">${src.replace('_',' ')}</div>
+      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(n/maxSrc*100)}%;background:${srcColors[src]||'#6366f1'}"></div></div>
+      <div class="source-count">${n}</div>
+    </div>
+  `).join('');
+
+  // Pipeline bars
+  const pipeline = [
+    {label:'applied',      n: stats.applied,      color:'#818cf8'},
+    {label:'interviewing', n: stats.interviewing,  color:'#14b8a6'},
+    {label:'offer',        n: stats.offers,        color:'#22c55e'},
+    {label:'rejected',     n: stats.rejected,      color:'#ef4444'},
+  ];
+  const maxPipe = Math.max(...pipeline.map(p => p.n), 1);
+  document.getElementById('pipeline-rows').innerHTML = pipeline.map(p => `
+    <div class="source-row">
+      <div class="source-label">${p.label}</div>
+      <div class="source-track"><div class="source-track-fill" style="width:${Math.round(p.n/maxPipe*100)}%;background:${p.color}"></div></div>
+      <div class="source-count">${p.n}</div>
+    </div>
+  `).join('');
+
+  renderTable(apps);
+}
+
+function renderTable(apps) {
+  let filtered = apps;
+  if (currentFilter !== 'all') filtered = filtered.filter(a => a.status === currentFilter);
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    filtered = filtered.filter(a =>
+      a.title.toLowerCase().includes(q) || a.company.toLowerCase().includes(q)
+    );
+  }
+
+  const tbody = document.getElementById('apps-tbody');
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="big">0</div><p>No applications match this filter</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(app => {
+    const d = new Date(app.applied_at);
+    const dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    return `
+      <tr onclick="openPanel('${app.id}')">
+        <td>
+          <div class="job-title">${app.title}</div>
+          <div class="job-company">${app.company}</div>
+        </td>
+        <td><span class="source-badge ${app.source}">${app.source.replace('_',' ')}</span></td>
+        <td>
+          <div class="score-bar-wrap">
+            <div class="score-bar"><div class="score-fill" style="width:${app.match_score}%"></div></div>
+            <span class="score-num">${app.match_score}</span>
+          </div>
+        </td>
+        <td><span class="status-pill ${app.status}">${app.status}</span></td>
+        <td class="date-cell">${dateStr}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function setFilter(el) {
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = el.dataset.status;
+  renderTable(SAMPLE);
+}
+
+function filterApps() {
+  currentSearch = document.getElementById('search-input').value;
+  renderTable(SAMPLE);
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function openPanel(id) {
+  const app = SAMPLE.find(a => a.id === id);
+  if (!app) return;
+  activeJobId = id;
+
+  document.getElementById('dp-title').textContent   = app.title;
+  document.getElementById('dp-company').textContent = `${app.company} · ${app.source}`;
+  document.getElementById('dp-status-pill').innerHTML = `<span class="status-pill ${app.status}">${app.status}</span>`;
+  document.getElementById('dp-cover').textContent    = app.cover_letter || '(none)';
+  document.getElementById('dp-resume').textContent   = app.tailored_resume || '(none)';
+  document.getElementById('dp-score-details').textContent = app.score_details || '(none)';
+
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  activeJobId = null;
+}
+
+function changeStatus(status) {
+  if (!activeJobId) return;
+  const app = SAMPLE.find(a => a.id === activeJobId);
+  if (app) {
+    app.status = status;
+    document.getElementById('dp-status-pill').innerHTML = `<span class="status-pill ${status}">${status}</span>`;
+    renderTable(SAMPLE);
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+// In production: fetch('data/dashboard_feed.json').then(r=>r.json()).then(d => render(d.applications))
+render(SAMPLE);
+</script>
+</body>
+</html>
