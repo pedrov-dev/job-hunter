@@ -2,73 +2,68 @@
 # Organized by: 🇲🇽 CDMX/Mexico presence → 🌎 Remote-friendly LATAM → 🌐 Relocation/visa-sponsored
 # Adjacent roles covered: ML Engineer, AI Platform, LLM Engineer, Data Scientist, Backend AI, MLOps
 
+SLUG_OVERRIDES: dict[str, dict[str, str]] = {
+    "lever": {
+        "clip-mx": "clip",
+        "incode-technologies": "incode",
+        "scaleai": "scale-ai",
+        "wandb": "weightsbiases",
+    },
+}
+
+COMPANY_NAME_OVERRIDES: dict[str, str] = {
+    "clip-mx": "Clip",
+    "incode-technologies": "Incode Technologies",
+    "scaleai": "Scale AI",
+    "wandb": "Weights & Biases",
+}
+
 COMPANIES: list[tuple[str, str]] = [
 
     # ── 🇲🇽 COMPANIES WITH CDMX OFFICES / MEXICO ENGINEERING TEAMS ────────────────
 
     # Etsy — confirmed CDMX engineering office (Polanco)
     ("etsy", "greenhouse"),
-
     # Kavak — Mexico-founded unicorn, active ML team in CDMX
     ("kavak", "greenhouse"),
-
     # Clip — Mexican fintech, CDMX HQ, growing ML/data team
     ("clip-mx", "lever"),
-
     # Konfío — B2B fintech CDMX, ML for credit scoring
     ("konfio", "greenhouse"),
-
     # Bitso — Crypto exchange, CDMX office, ML/data engineering
     ("bitso", "greenhouse"),
-
     # Klar — Neobank CDMX, AI/ML for risk and fraud
     ("klar", "lever"),
-
     # Incode Technologies — Identity AI, CDMX HQ, LLM + vision engineering
     ("incode-technologies", "lever"),
-
     # LATAM Airlines — Greenhouse presence, MLE roles open in Mexico
     ("latam", "greenhouse"),
-
     # Qualcomm — CDMX engineering office, ML compiler roles
     ("qualcomm", "greenhouse"),
-
     # Google — Cloud AI Engineer roles specifically advertised for CDMX
     ("google", "greenhouse"),
-
     # Salesforce — Confirmed engineering in CDMX, ML/AI roles
     ("salesforce", "greenhouse"),
-
     # Wizeline — Mexico City + GDL + MTY, applied AI consulting arm
     ("wizeline", "greenhouse"),
-
     # Softtek — Enterprise AI, Mexico HQ, ISO 42001 certified AI mgmt
     ("softtek", "greenhouse"),
-
     # Encora — CDMX + Hermosillo, explicit LLM Engineering roles
     ("encora", "greenhouse"),
-
     # Scribd — Remote-friendly, multiple MLE openings targeting Mexico
     ("scribd", "greenhouse"),
-
     # SimplePractice — Confirmed ML roles visible in MX job boards
     ("simplepractice", "greenhouse"),
-
     # Sezzle — Buy-now-pay-later, ML roles open in Mexico City
     ("sezzle", "greenhouse"),
-
     # Grupo Salinas / Totalplay (tech arm) — Large CDMX conglomerate, AI initiatives
     ("totalplay", "greenhouse"),
-
     # Mercado Libre — Latam e-commerce giant, CDMX office, large ML platform team
     ("mercadolibre", "greenhouse"),
-
     # Oracle — OCI Data Science roles, Mexico engineering presence
     ("oracle", "greenhouse"),
-
     # BBVA Mexico — Banktech + AI, large CDMX AI center
     ("bbva", "greenhouse"),
-
     # Rappi — Delivery super-app, Mexico City office, ML/Recommendations team
     ("rappi", "greenhouse"),
 
@@ -76,88 +71,60 @@ COMPANIES: list[tuple[str, str]] = [
 
     # Factored — LATAM-focused AI/ML staffing + residency (Greenhouse confirmed)
     ("factored", "greenhouse"),
-
     # Arionkoder — LLM/AI Greenhouse-listed, explicitly LATAM remote
     ("arionkoder", "greenhouse"),
-
     # Xebia / LATAM — GCP ML roles open for LATAM (Greenhouse confirmed)
     ("xebia", "greenhouse"),
-
     # Quora / Poe — Remote-first, Ashby confirmed, MX-eligible countries
     ("quora", "ashby"),
-
     # Cohere — LLM infra company, Ashby confirmed, LATAM hires
     ("cohere", "ashby"),
-
     # Handshake — Ashby confirmed, ML intern/eng roles, remote eligible
     ("handshake", "ashby"),
-
     # Scale AI — Data annotation + LLM training platform, Lever, LATAM remote
     ("scaleai", "lever"),
-
     # Weights & Biases (wandb) — MLOps tooling, remote-first, Lever
     ("wandb", "lever"),
-
     # Labelbox — Data-centric AI, Wellfound/Greenhouse, remote eng
     ("labelbox", "greenhouse"),
-
     # Hugging Face — Open-source AI, remote-first globally, Lever
     ("huggingface", "lever"),
-
     # Replit — AI coding platform, remote-friendly, Ashby
     ("replit", "ashby"),
-
     # Runway ML — Generative AI/video, NYC + remote, Greenhouse
     ("runwayml", "greenhouse"),
-
     # ElevenLabs — Voice AI, remote-friendly, Ashby
     ("elevenlabs", "ashby"),
-
     # Stability AI — GenAI, remote-distributed, Greenhouse
     ("stabilityai", "greenhouse"),
-
     # Mistral AI — LLM company, remote roles, Lever (EU primarily but open)
     ("mistral", "lever"),
-
     # Anthropic — Safety-focused LLM lab, Greenhouse, US-based but growing
     ("anthropic", "greenhouse"),
-
     # OpenAI — LLM lab, Greenhouse, US-based with some intl roles
     ("openai", "greenhouse"),
-
     # Perplexity AI — AI search, Ashby, fast-growing remote roles
     ("perplexityai", "ashby"),
-
     # Character.AI — Conversational AI, Greenhouse, some remote
     ("characterai", "greenhouse"),
-
     # Together AI — LLM inference platform, Greenhouse, remote
     ("togetherai", "greenhouse"),
-
     # Anyscale — Ray / distributed ML, Greenhouse, remote-open
     ("anyscale", "greenhouse"),
-
     # Modal — Cloud GPU/ML infra, Ashby, remote-friendly
     ("modal-labs", "ashby"),
-
     # Replicate — ML model hosting, Ashby, remote-first
     ("replicate", "ashby"),
-
     # Luma AI — 3D/Video GenAI, Ashby
     ("luma-ai", "ashby"),
-
     # Glean — Enterprise AI search, Greenhouse, some remote
     ("glean", "greenhouse"),
-
     # Ema — Enterprise AI assistant, Greenhouse, remote
     ("ema", "greenhouse"),
-
     # Sierra AI — Conversational AI agents, Greenhouse
     ("sierra", "greenhouse"),
-
     # Dust — LLM ops / enterprise agents, Ashby
     ("dust", "ashby"),
-
     # Vapi — Voice AI infrastructure, Ashby
     ("vapi", "ashby"),
 

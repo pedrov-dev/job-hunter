@@ -14,13 +14,19 @@ import logging
 import random
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
 
 from config import BEHAVIOR, DATA_DIR, SEARCH, SWEEPS
 
-from .companies import COMPANIES, build_company_list
+from .companies import (
+    COMPANIES,
+    COMPANY_NAME_OVERRIDES,
+    SLUG_OVERRIDES,
+    build_company_list,
+)
 
 log = logging.getLogger("jobbot.discovery")
 
@@ -192,7 +198,7 @@ class CareerPageDiscovery:
             len(self.company_targets),
         )
 
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             for slug, ats in self.company_targets:
                 try:
                     if ats == "greenhouse":
@@ -204,48 +210,110 @@ class CareerPageDiscovery:
                     else:
                         continue
                     postings.extend(jobs)
-                    for j in jobs:
-                        seen.add(j.id)
-                except Exception as e:
-                    log.warning(f"Career page error ({slug}, {ats}): {e}")
+                    for job in jobs:
+                        seen.add(job.id)
+                except httpx.HTTPStatusError as exc:
+                    status = exc.response.status_code if exc.response is not None else "unknown"
+                    log.warning("Career page HTTP error (%s, %s): status=%s", slug, ats, status)
+                except httpx.RequestError as exc:
+                    log.warning("Career page request error (%s, %s): %s", slug, ats, exc)
+                except Exception as exc:
+                    log.warning("Career page parse error (%s, %s): %s", slug, ats, exc)
 
         save_seen(seen)
         return postings
 
-    async def _greenhouse(self, client, slug: str, seen: set) -> list[JobPosting]:
-        resp = await client.get(self.GREENHOUSE_URL.format(slug=slug))
-        data = resp.json()
-        jobs = []
-        for item in data.get("jobs", []):
-            loc = item.get("location", {}).get("name", "")
-            job = JobPosting(
-                title=item.get("title", ""),
-                company=slug.replace("-", " ").title(),
-                location=loc,
-                remote="remote" in loc.lower(),
-                url=item.get("absolute_url", ""),
-                source="career_page",
-                apply_method="external",
-            ).compute_id()
-            if job.id not in seen:
-                jobs.append(job)
-        return jobs
+    def _resolve_company_slug(self, slug: str, ats: str) -> str:
+        return SLUG_OVERRIDES.get(ats, {}).get(slug, slug)
 
-    async def _lever(self, client, slug: str, seen: set) -> list[JobPosting]:
-        resp = await client.get(self.LEVER_URL.format(slug=slug))
-        data = resp.json()
+    def _company_name(self, slug: str) -> str:
+        return COMPANY_NAME_OVERRIDES.get(slug, slug.replace("-", " ").title())
+
+    def _parse_json_response(
+        self,
+        resp: httpx.Response,
+        *,
+        slug: str,
+        ats: str,
+    ) -> object | None:
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError:
+            if resp.status_code == 404:
+                log.debug("Career page 404 (%s, %s): skipping stale target", slug, ats)
+                return None
+            raise
+
+        try:
+            return resp.json()
+        except ValueError as exc:
+            log.debug("Career page invalid JSON (%s, %s): %s", slug, ats, exc)
+            return None
+
+    def _normalize_postings(
+        self,
+        ats: str,
+        payload: object,
+        *,
+        slug: str,
+    ) -> list[dict[str, Any]]:
+        if payload is None:
+            return []
+
+        if ats == "greenhouse":
+            raw_items = payload.get("jobs", []) if isinstance(payload, dict) else []
+        elif ats == "lever":
+            if isinstance(payload, list):
+                raw_items = payload
+            elif isinstance(payload, dict):
+                raw_items = (
+                    payload.get("data")
+                    or payload.get("postings")
+                    or payload.get("items")
+                    or []
+                )
+            else:
+                raw_items = []
+        elif ats == "ashby":
+            data = payload.get("data", {}) if isinstance(payload, dict) else {}
+            job_board = data.get("jobBoard", {}) if isinstance(data, dict) else {}
+            raw_items = job_board.get("jobPostings", []) if isinstance(job_board, dict) else []
+        else:
+            raw_items = []
+
+        if not isinstance(raw_items, list):
+            log.debug("Unexpected %s payload shape for %s: %s", ats, slug, type(payload).__name__)
+            return []
+
+        normalized = [item for item in raw_items if isinstance(item, dict)]
+        if len(normalized) != len(raw_items):
+            log.debug(
+                "Dropped %s malformed %s posting(s) for %s",
+                len(raw_items) - len(normalized),
+                ats,
+                slug,
+            )
+        return normalized
+
+    async def _greenhouse(self, client, slug: str, seen: set[str]) -> list[JobPosting]:
+        fetch_slug = self._resolve_company_slug(slug, "greenhouse")
+        resp = await client.get(self.GREENHOUSE_URL.format(slug=fetch_slug))
+        data = self._parse_json_response(resp, slug=slug, ats="greenhouse")
+
         jobs = []
-        for item in data:
-            loc = item.get("categories", {}).get("location", "")
+        for item in self._normalize_postings("greenhouse", data, slug=slug):
+            location_data = item.get("location", {})
+            loc = location_data.get("name", "") if isinstance(location_data, dict) else ""
             job = JobPosting(
-                title=item.get("text", ""),
-                company=slug.replace("-", " ").title(),
+                title=str(item.get("title", "") or ""),
+                company=self._company_name(slug),
                 location=loc,
                 remote="remote" in loc.lower(),
-                url=item.get("hostedUrl", ""),
+                url=str(item.get("absolute_url", "") or ""),
                 source="career_page",
                 description=BeautifulSoup(
-                    item.get("descriptionPlain", ""), "html.parser"
+                    str(item.get("content", "") or ""),
+                    "html.parser",
                 ).get_text(),
                 apply_method="external",
             ).compute_id()
@@ -253,8 +321,32 @@ class CareerPageDiscovery:
                 jobs.append(job)
         return jobs
 
-    async def _ashby(self, client, slug: str, seen: set) -> list[JobPosting]:
-        # Ashby uses GraphQL
+    async def _lever(self, client, slug: str, seen: set[str]) -> list[JobPosting]:
+        fetch_slug = self._resolve_company_slug(slug, "lever")
+        resp = await client.get(self.LEVER_URL.format(slug=fetch_slug))
+        data = self._parse_json_response(resp, slug=slug, ats="lever")
+
+        jobs = []
+        for item in self._normalize_postings("lever", data, slug=slug):
+            categories = item.get("categories", {})
+            loc = categories.get("location", "") if isinstance(categories, dict) else ""
+            description = item.get("descriptionPlain", "") or ""
+            job = JobPosting(
+                title=str(item.get("text", "") or ""),
+                company=self._company_name(slug),
+                location=loc,
+                remote="remote" in loc.lower(),
+                url=str(item.get("hostedUrl", "") or ""),
+                source="career_page",
+                description=BeautifulSoup(str(description), "html.parser").get_text(),
+                apply_method="external",
+            ).compute_id()
+            if job.id not in seen:
+                jobs.append(job)
+        return jobs
+
+    async def _ashby(self, client, slug: str, seen: set[str]) -> list[JobPosting]:
+        fetch_slug = self._resolve_company_slug(slug, "ashby")
         query = """
         query ApiJobBoardWithTeams(
           $organizationHostedJobsPageName: String!
@@ -267,17 +359,19 @@ class CareerPageDiscovery:
         }"""
         resp = await client.post(
             self.ASHBY_URL,
-            json={"query": query, "variables": {"organizationHostedJobsPageName": slug}},
+            json={"query": query, "variables": {"organizationHostedJobsPageName": fetch_slug}},
         )
-        data = resp.json()
+        data = self._parse_json_response(resp, slug=slug, ats="ashby")
+
         jobs = []
-        for item in data.get("data", {}).get("jobBoard", {}).get("jobPostings", []):
+        for item in self._normalize_postings("ashby", data, slug=slug):
+            location = str(item.get("locationName", "") or "")
             job = JobPosting(
-                title=item.get("title", ""),
-                company=slug.replace("-", " ").title(),
-                location=item.get("locationName", ""),
-                remote=item.get("isRemote", False),
-                url=item.get("externalLink", ""),
+                title=str(item.get("title", "") or ""),
+                company=self._company_name(slug),
+                location=location,
+                remote=bool(item.get("isRemote", False)) or "remote" in location.lower(),
+                url=str(item.get("externalLink", "") or ""),
                 source="career_page",
                 apply_method="external",
             ).compute_id()
