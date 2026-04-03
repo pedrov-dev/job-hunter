@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS applications (
     last_updated    TEXT,
     cover_letter    TEXT,
     tailored_resume TEXT,
+    resume_variant  TEXT,
     score_details   TEXT,
     followup_sent   INTEGER DEFAULT 0,
     followup_date   TEXT,
@@ -66,9 +67,19 @@ def get_conn():
     finally:
         conn.close()
 
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str):
+    existing = {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        _ensure_column(conn, "applications", "resume_variant", "TEXT DEFAULT ''")
     log.info(f"DB initialized at {DB_PATH}")
 
 
@@ -79,7 +90,8 @@ def record_application(
     result: SubmissionResult,
     tailored_resume: str = "",
     cover_letter: str = "",
-    score_details: dict = None,
+    score_details: dict | None = None,
+    resume_variant: str = "",
 ):
     now = datetime.utcnow().isoformat()
     with get_conn() as conn:
@@ -87,14 +99,14 @@ def record_application(
             INSERT OR REPLACE INTO applications
               (id, title, company, location, remote, url, source, apply_method,
                match_score, status, applied_at, last_updated,
-               cover_letter, tailored_resume, score_details)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               cover_letter, tailored_resume, resume_variant, score_details)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             job.id, job.title, job.company, job.location, int(job.remote),
             job.url, job.source, job.apply_method, job.match_score,
             "applied" if result.success else "error",
             now, now,
-            cover_letter, tailored_resume,
+            cover_letter, tailored_resume, resume_variant,
             json.dumps(score_details or {}),
         ))
 
@@ -157,13 +169,25 @@ def get_pending_followups(after_days: int = 7) -> list[dict]:
 
 def get_stats() -> dict:
     with get_conn() as conn:
-        total    = conn.execute("SELECT COUNT(*) FROM applications").fetchone()[0]
-        applied  = conn.execute("SELECT COUNT(*) FROM applications WHERE status='applied'").fetchone()[0]
-        interview = conn.execute("SELECT COUNT(*) FROM applications WHERE status='interviewing'").fetchone()[0]
-        offers   = conn.execute("SELECT COUNT(*) FROM applications WHERE status='offer'").fetchone()[0]
-        rejected = conn.execute("SELECT COUNT(*) FROM applications WHERE status='rejected'").fetchone()[0]
-        errors   = conn.execute("SELECT COUNT(*) FROM applications WHERE status='error'").fetchone()[0]
-        avg_score = conn.execute("SELECT AVG(match_score) FROM applications").fetchone()[0] or 0
+        total = conn.execute("SELECT COUNT(*) FROM applications").fetchone()[0]
+        applied = conn.execute(
+            "SELECT COUNT(*) FROM applications WHERE status='applied'"
+        ).fetchone()[0]
+        interview = conn.execute(
+            "SELECT COUNT(*) FROM applications WHERE status='interviewing'"
+        ).fetchone()[0]
+        offers = conn.execute(
+            "SELECT COUNT(*) FROM applications WHERE status='offer'"
+        ).fetchone()[0]
+        rejected = conn.execute(
+            "SELECT COUNT(*) FROM applications WHERE status='rejected'"
+        ).fetchone()[0]
+        errors = conn.execute(
+            "SELECT COUNT(*) FROM applications WHERE status='error'"
+        ).fetchone()[0]
+        avg_score = conn.execute(
+            "SELECT AVG(match_score) FROM applications"
+        ).fetchone()[0] or 0
 
         by_source = {}
         for row in conn.execute(

@@ -1,11 +1,11 @@
 # JobBot
 
-JobBot is a Windows-friendly Python automation tool for discovering jobs, scoring them against your resume, generating tailored application materials, submitting applications, and tracking outcomes locally.
+JobBot is a Windows-friendly Python automation tool for discovering jobs, scoring them against your resume library, selecting the best pre-written resume for each role, submitting applications, and tracking outcomes locally.
 
 It currently supports:
 
 - Job discovery from Indeed RSS and public career pages backed by Greenhouse, Lever, or Ashby
-- OpenAI-powered scoring and resume tailoring
+- OpenAI-powered scoring with rule-based resume selection by title and industry
 - Optional cover letter generation
 - PDF resume generation with WeasyPrint
 - Submission flows for Indeed, generic ATS forms, and email applications
@@ -38,7 +38,13 @@ The main settings live in [config.py](config.py):
 - AI settings such as provider, model, scoring threshold, and cover letter behavior
 - Run behavior such as per-run application limit, browser mode, and follow-up timing
 
-The master resume must be saved at [resumes/master_resume.md](resumes/master_resume.md).
+Save a short set of resume variants under [resumes/](resumes). The defaults are:
+
+- `resumes/general_ai.md`
+- `resumes/ai_leadership.md`
+- `resumes/automation_ops.md`
+
+Update [config.py](config.py) if you want different filenames, title keywords, or target industries.
 
 ## Run
 
@@ -55,9 +61,9 @@ python main.py --limit 5
 `python main.py` runs the full pipeline:
 
 1. Discover jobs
-2. Score each job against the master resume
-3. Tailor the resume and optional cover letter
-4. Convert the tailored resume to PDF
+2. Select the best resume variant based on title and industry
+3. Score each job against that resume and optionally draft a cover letter
+4. Convert the selected resume to PDF
 5. Submit applications
 6. Send follow-up emails if enabled
 
@@ -70,7 +76,7 @@ The app writes local state and generated files under the repository root:
 - [data/applications.db](data/applications.db) for application history
 - [data/dashboard_feed.json](data/dashboard_feed.json) for the dashboard
 - [data/seen_jobs.json](data/seen_jobs.json) for deduplication
-- [output/](output) for per-job tailored resumes, cover letters, and job JSON
+- [output/](output) for per-job selected resumes, cover letters, and job JSON
 - [logs/jobbot.log](logs/jobbot.log) for runtime logs
 
 ## Dashboard
@@ -82,7 +88,7 @@ The dashboard UI lives in [ui/dashboard.html](ui/dashboard.html). It is a static
 - [main.py](main.py): CLI entry point and pipeline orchestration
 - [config.py](config.py): search, AI, and behavior configuration
 - [core/discovery.py](core/discovery.py): job discovery and deduplication
-- [core/tailor.py](core/tailor.py): scoring, resume tailoring, and cover letter generation
+- [core/tailor.py](core/tailor.py): scoring, resume selection, and cover letter generation
 - [core/resume_pdf.py](core/resume_pdf.py): Markdown to PDF conversion
 - [submissions/submitter.py](submissions/submitter.py): application submission handlers
 - [tracking/tracker.py](tracking/tracker.py): SQLite persistence and dashboard feed generation

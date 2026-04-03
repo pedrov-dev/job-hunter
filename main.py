@@ -4,11 +4,13 @@ main.py
 JobBot entry point. Run this to start a full application cycle:
 
   python main.py                 # full run
-  python main.py --dry-run       # score & tailor but don't submit
+  python main.py --dry-run       # score & select resumes but don't submit
   python main.py --followups     # only send follow-up emails
   python main.py --stats         # print stats and exit
   python main.py --limit 5       # apply to max 5 jobs
 """
+
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -64,8 +66,8 @@ async def run(dry_run: bool = False, limit: int = None):
         log.info("Nothing new to apply to. Exiting.")
         return
 
-    # ── 2. Score & tailor ──────────────────────────────────────────────────────
-    log.info("Phase 2: AI scoring & tailoring")
+    # ── 2. Score & select resume ───────────────────────────────────────────────
+    log.info("Phase 2: scoring and resume selection")
     applications = []
     for job in jobs:
         if len(applications) >= max_apps:
@@ -130,6 +132,7 @@ async def run(dry_run: bool = False, limit: int = None):
                 tailored_resume=app["tailored_resume"],
                 cover_letter=app.get("cover_letter", ""),
                 score_details=app.get("score_details"),
+                resume_variant=app.get("resume_variant", ""),
             )
             status = "✓" if result.success else "✗"
             log.info(
@@ -183,7 +186,11 @@ By source: {s['by_source']}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JobBot — Autonomous Job Applicator")
-    parser.add_argument("--dry-run",    action="store_true", help="Score & tailor but don't submit")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Score & select resumes but don't submit",
+    )
     parser.add_argument("--followups",  action="store_true", help="Only send follow-up emails")
     parser.add_argument("--stats",      action="store_true", help="Print stats and exit")
     parser.add_argument("--limit",      type=int,            help="Max applications this run")

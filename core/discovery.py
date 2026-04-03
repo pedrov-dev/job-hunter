@@ -231,8 +231,12 @@ class CareerPageDiscovery:
     async def _ashby(self, client, slug: str, seen: set) -> list[JobPosting]:
         # Ashby uses GraphQL
         query = """
-        query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) {
-          jobBoard: publishedJobBoard(organizationHostedJobsPageName: $organizationHostedJobsPageName) {
+        query ApiJobBoardWithTeams(
+          $organizationHostedJobsPageName: String!
+        ) {
+          jobBoard: publishedJobBoard(
+            organizationHostedJobsPageName: $organizationHostedJobsPageName
+          ) {
             jobPostings { id title locationName isRemote externalLink }
           }
         }"""

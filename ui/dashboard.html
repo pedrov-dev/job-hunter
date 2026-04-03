@@ -531,7 +531,7 @@
   </div>
 
   <div class="panel-section">
-    <div class="panel-section-label">Tailored resume preview</div>
+    <div class="panel-section-label">Selected resume preview</div>
     <div class="panel-text" id="dp-resume"></div>
   </div>
 </div>
@@ -565,6 +565,7 @@ function generateSampleData() {
       url: '#',
       cover_letter: `Building AI products for Latin American markets for the past 4 years, I've learned that the gap between proof-of-concept and production isn't technical — it's organizational. That's what drew me to the ${title} role at ${co}.\n\nI've led automation initiatives that reduced operational costs by 40% and built custom LLM assistants used by 200+ employees. At ${co}, I'd focus on identifying the two or three workflows where AI creates asymmetric value, then building the team muscle to scale from there.\n\nI'd love to talk through how my consulting experience maps to what you're building.`,
       score_details: JSON.stringify({score, reasons: ['Strong LLM experience', 'Consulting background matches', 'Spanish-market expertise'], missing: ['Enterprise sales', 'Team of >10']}, null, 2),
+      resume_variant: ['general_ai', 'ai_leadership', 'automation_ops'][i % 3],
       tailored_resume: `# Pedro Ventura\nMexico City · pedro@example.com · pedro.dev\n\n## Experience\n\n**Founder & AI Consultant** · Independent · 2021–present\n- Built 15+ AI automations for mid-sized service businesses in Mexico\n- Delivered LLM-powered copilots (OpenAI + Supabase) reducing ticket volume 60%\n- Led AI audit practice across finance, logistics, and retail sectors\n\n**Previous roles** · ...\n\n## Skills\nPython · OpenAI · Anthropic · LangChain · Supabase · Zapier · Make · SQL`,
     });
   }
@@ -691,7 +692,8 @@ function openPanel(id) {
   activeJobId = id;
 
   document.getElementById('dp-title').textContent   = app.title;
-  document.getElementById('dp-company').textContent = `${app.company} · ${app.source}`;
+  const variant = app.resume_variant ? ` · resume: ${app.resume_variant}` : '';
+  document.getElementById('dp-company').textContent = `${app.company} · ${app.source}${variant}`;
   document.getElementById('dp-status-pill').innerHTML = `<span class="status-pill ${app.status}">${app.status}</span>`;
   document.getElementById('dp-cover').textContent    = app.cover_letter || '(none)';
   document.getElementById('dp-resume').textContent   = app.tailored_resume || '(none)';

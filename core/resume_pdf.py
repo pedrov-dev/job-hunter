@@ -24,13 +24,13 @@ def md_to_pdf(markdown_text: str, output_path: Path) -> Path:
     """
     try:
         import markdown
-        from weasyprint import CSS, HTML
-    except ImportError:
+        from weasyprint import HTML
+    except ImportError as err:
         raise ImportError(
             "Install with: pip install markdown weasyprint\n"
             "WeasyPrint also needs system libs: "
             "https://doc.courtbouillon.org/weasyprint/stable/first_steps.html"
-        )
+        ) from err
 
     # Cache by content hash
     content_hash = hashlib.md5(markdown_text.encode()).hexdigest()[:10]

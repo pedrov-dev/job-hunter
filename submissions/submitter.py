@@ -39,7 +39,7 @@ class SubmissionResult:
 
 # ── Human-like delays ─────────────────────────────────────────────────────────
 
-async def human_delay(min_s: float = None, max_s: float = None):
+async def human_delay(min_s: float | None = None, max_s: float | None = None):
     lo = min_s or BEHAVIOR.min_delay_seconds
     hi = max_s or BEHAVIOR.max_delay_seconds
     await asyncio.sleep(random.uniform(lo, hi))
@@ -62,7 +62,9 @@ class IndeedApply:
                 await page.wait_for_timeout(2000)
 
                 # Look for "Apply now" button
-                apply_btn = page.locator('a[id*="applyButtonLinkContainer"], button:has-text("Apply now")').first
+                apply_btn = page.locator(
+                    'a[id*="applyButtonLinkContainer"], button:has-text("Apply now")'
+                ).first
                 if await apply_btn.count() == 0:
                     return SubmissionResult(
                         job_id=job.id, success=False,
@@ -90,7 +92,12 @@ class IndeedApply:
             finally:
                 await browser.close()
 
-    async def _fill_indeed_form(self, page: Page, job: JobPosting, resume_pdf: Path) -> SubmissionResult:
+    async def _fill_indeed_form(
+        self,
+        page: Page,
+        job: JobPosting,
+        resume_pdf: Path,
+    ) -> SubmissionResult:
         # Upload resume
         file_input = page.locator('input[type="file"]').first
         if await file_input.count() > 0:

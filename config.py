@@ -4,8 +4,11 @@ JobBot — Autonomous Job Application System
 Edit this file to configure your job search.
 """
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).parent
@@ -17,9 +20,6 @@ for d in [DATA_DIR, RESUME_DIR, LOG_DIR]:
     d.mkdir(exist_ok=True)
 
 # ── API Keys (set via environment variables or .env file) ─────────────────────
-import os
-
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -74,6 +74,54 @@ class SearchCriteria:
     max_days_old: int = 7
 
 
+@dataclass(frozen=True)
+class ResumeVariant:
+    key: str
+    filename: str
+    title_keywords: list[str] = field(default_factory=list)
+    industries: list[str] = field(default_factory=list)
+    is_default: bool = False
+
+
+@dataclass
+class ResumeConfig:
+    variants: list[ResumeVariant] = field(default_factory=lambda: [
+        ResumeVariant(
+            key="general_ai",
+            filename="general_ai.md",
+            title_keywords=[
+                "ai consultant",
+                "machine learning consultant",
+                "llm engineer",
+            ],
+            industries=["technology", "saas", "consulting"],
+            is_default=True,
+        ),
+        ResumeVariant(
+            key="ai_leadership",
+            filename="ai_leadership.md",
+            title_keywords=[
+                "head of ai",
+                "ai strategy lead",
+                "director of ai",
+                "ai lead",
+            ],
+            industries=["financial services", "fintech", "healthcare"],
+        ),
+        ResumeVariant(
+            key="automation_ops",
+            filename="automation_ops.md",
+            title_keywords=[
+                "automation consultant",
+                "automation lead",
+                "operations",
+                "process improvement",
+            ],
+            industries=["logistics", "retail", "operations", "manufacturing"],
+        ),
+    ])
+
+
 # ── AI Model Config ────────────────────────────────────────────────────────────
 @dataclass
 class AIConfig:
@@ -81,10 +129,8 @@ class AIConfig:
     provider: str = "openai"
     model: str = "gpt-4o"
 
-    # Tailoring behavior
-    resume_style: str = "concise"        # "concise" | "detailed"
+    # Optional cover letter behavior
     cover_letter_tone: str = "direct"    # "direct" | "warm" | "formal"
-    max_resume_pages: int = 1
     include_cover_letter: bool = True
 
     # Scoring threshold (0–100). Jobs below this are skipped.
@@ -114,5 +160,6 @@ class BehaviorConfig:
 
 # ── Instantiate defaults ───────────────────────────────────────────────────────
 SEARCH   = SearchCriteria()
+RESUMES  = ResumeConfig()
 AI       = AIConfig()
 BEHAVIOR = BehaviorConfig()
