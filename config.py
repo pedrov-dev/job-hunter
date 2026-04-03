@@ -24,7 +24,6 @@ for d in [DATA_DIR, RESUME_DIR, LOG_DIR]:
 load_dotenv()
 
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # Gmail/SMTP (for email-based applications)
 SMTP_HOST     = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -114,13 +113,12 @@ class ResumeConfig:
 # ── AI Model Config ────────────────────────────────────────────────────────────
 @dataclass
 class AIConfig:
-    # Provider: "openai" or "anthropic"
     provider: str = "openai"
-    model: str = "gpt-4o"
+    model: str = "gpt-5.4-nano"
 
     # Optional cover letter behavior
     cover_letter_tone: str = "direct"    # "direct" | "warm" | "formal"
-    include_cover_letter: bool = True
+    include_cover_letter: bool = False
 
     # Scoring threshold (0–100). Jobs below this are skipped.
     min_match_score: int = 65

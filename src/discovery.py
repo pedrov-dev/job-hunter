@@ -19,7 +19,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from config import BEHAVIOR, DATA_DIR, SEARCH
-
+from .companies import COMPANIES 
 log = logging.getLogger("jobbot.discovery")
 
 
@@ -153,16 +153,11 @@ class IndeedDiscovery:
 class CareerPageDiscovery:
     """
     Scrapes Lever / Greenhouse / Ashby ATS public APIs.
-    Add target companies to the COMPANIES list.
+    Company targets are configured in `src/companies.py`.
     """
 
     # Format: (company_slug, ats_type)
-    COMPANIES: list[tuple[str, str]] = [
-        # Add your target companies here, e.g.:
-        # ("stripe", "greenhouse"),
-        # ("linear", "lever"),
-        # ("ashby-hq", "ashby"),
-    ]
+    COMPANIES: list[tuple[str, str]] = COMPANIES
 
     GREENHOUSE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
     LEVER_URL      = "https://api.lever.co/v0/postings/{slug}?mode=json"
