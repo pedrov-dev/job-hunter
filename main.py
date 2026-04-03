@@ -32,7 +32,7 @@ logging.basicConfig(
 log = logging.getLogger("jobbot.main")
 
 # ── Imports (after logging is set up) ─────────────────────────────────────────
-from config import BEHAVIOR
+from config import BEHAVIOR, SWEEPS
 from src.discovery import discover_all
 from src.submitter import submit
 from src.tailor import process_job
@@ -46,10 +46,22 @@ from tracking.tracker import (
 
 # ── Main pipeline ──────────────────────────────────────────────────────────────
 
-async def run(dry_run: bool = False, limit: int | None = None):
+async def run(
+    dry_run: bool = False,
+    limit: int | None = None,
+    sweep_tier: str | None = None,
+):
+    resolved_sweep_tier = SWEEPS.resolve_tier(sweep_tier)
+
     log.info("=" * 60)
     log.info("JobBot starting")
-    log.info(f"  dry_run={dry_run}  limit={limit or BEHAVIOR.max_applications_per_run}")
+    log.info(
+        "  dry_run=%s  limit=%s  sweep_tier=%s",
+        dry_run,
+        limit or BEHAVIOR.max_applications_per_run,
+        resolved_sweep_tier,
+    )
+    log.info("  sweep_focus=%s", SWEEPS.describe_tier(resolved_sweep_tier))
     log.info("=" * 60)
 
     init_db()
@@ -57,7 +69,10 @@ async def run(dry_run: bool = False, limit: int | None = None):
 
     # ── 1. Discover ────────────────────────────────────────────────────────────
     log.info("Phase 1: Discovery")
-    jobs = await discover_all(limit_per_source=max_apps * 3)
+    jobs = await discover_all(
+        limit_per_source=max_apps * 3,
+        sweep_tier=resolved_sweep_tier,
+    )
     log.info(f"  {len(jobs)} new jobs found across all sources")
 
     if not jobs:
@@ -196,6 +211,12 @@ if __name__ == "__main__":
     parser.add_argument("--followups",  action="store_true", help="Only send follow-up emails")
     parser.add_argument("--stats",      action="store_true", help="Print stats and exit")
     parser.add_argument("--limit",      type=int,            help="Max applications this run")
+    parser.add_argument(
+        "--sweep-tier",
+        choices=["daily", "weekly", "monthly", "all"],
+        default=SWEEPS.active_tier,
+        help="Choose which company-priority tier to sweep",
+    )
     args = parser.parse_args()
 
     if args.stats:
@@ -204,4 +225,10 @@ if __name__ == "__main__":
         init_db()
         send_followup_emails()
     else:
-        asyncio.run(run(dry_run=args.dry_run, limit=args.limit))
+        asyncio.run(
+            run(
+                dry_run=args.dry_run,
+                limit=args.limit,
+                sweep_tier=args.sweep_tier,
+            )
+        )

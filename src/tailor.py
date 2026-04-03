@@ -13,11 +13,21 @@ import json
 import logging
 import re
 import shutil
+import unicodedata
 from pathlib import Path
 
 from openai import OpenAI
 
-from config import AI, BASE_DIR, OPENAI_API_KEY, RESUME_DIR, RESUMES, ResumeVariant
+from config import (
+    AI,
+    BASE_DIR,
+    OPENAI_API_KEY,
+    RESUME_DIR,
+    RESUMES,
+    SEARCH,
+    ResumeVariant,
+    SearchCriteria,
+)
 from src.discovery import JobPosting
 
 log = logging.getLogger("jobbot.tailor")
@@ -25,8 +35,13 @@ RESUME_LIBRARY = RESUMES.variants
 LEGACY_RESUME_PATH = RESUME_DIR / "master_resume.pdf"
 
 
+def _ascii_lower(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("ascii", "ignore").decode("ascii").lower()
+
+
 def _normalize(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", _ascii_lower(text)).strip()
 
 
 def _tokenize(text: str) -> set[str]:
@@ -133,6 +148,112 @@ def select_resume_variant(job: JobPosting) -> tuple[ResumeVariant, str]:
         best_variant = _default_resume_variant()
 
     return best_variant, load_resume_text(best_variant)
+
+
+MEXICO_LOCATION_MARKERS = (
+    "mexico",
+    "mexico city",
+    "ciudad de mexico",
+    "cdmx",
+    "guadalajara",
+    "monterrey",
+)
+
+SALARY_HINT_PATTERN = re.compile(
+    r"\$|usd|mxn|salary|compensation|pay|a(?:n|ñ)o|year|month|mes|hour|hora",
+    re.IGNORECASE,
+)
+SALARY_NUMBER_PATTERN = re.compile(r"\d[\d,.]*(?:\.\d+)?\s*[kKmM]?")
+
+
+def _salary_period_multiplier(text: str) -> int:
+    normalized = _ascii_lower(text)
+    if any(token in normalized for token in ("per hour", "/hour", "hourly", "por hora")):
+        return 2080
+    if any(token in normalized for token in ("per day", "/day", "daily", "por dia")):
+        return 260
+    if any(token in normalized for token in ("per week", "/week", "weekly", "por semana")):
+        return 52
+    if any(
+        token in normalized
+        for token in ("per month", "/month", "monthly", "al mes", "por mes", "mensual")
+    ):
+        return 12
+    return 1
+
+
+def _parse_salary_number(raw: str) -> int | None:
+    cleaned = raw.strip().lower().replace(" ", "")
+    multiplier = 1
+    if cleaned.endswith("k"):
+        multiplier = 1_000
+        cleaned = cleaned[:-1]
+    elif cleaned.endswith("m"):
+        multiplier = 1_000_000
+        cleaned = cleaned[:-1]
+
+    if "," in cleaned and "." in cleaned:
+        if cleaned.rfind(",") > cleaned.rfind("."):
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            cleaned = cleaned.replace(",", "")
+    elif cleaned.count(".") >= 1 and all(part.isdigit() for part in cleaned.split(".")):
+        if any(len(part) == 3 for part in cleaned.split(".")[1:]):
+            cleaned = cleaned.replace(".", "")
+    else:
+        cleaned = cleaned.replace(",", "")
+
+    try:
+        return int(float(cleaned) * multiplier)
+    except ValueError:
+        return None
+
+
+def _infer_salary_currency(job: JobPosting, text: str, criteria: SearchCriteria) -> str:
+    normalized_text = _ascii_lower(text)
+    normalized_location = _ascii_lower(job.location)
+
+    if re.search(r"\bmxn\b|mx\$|pesos?\b", normalized_text):
+        return "MXN"
+    if re.search(r"\busd\b|us\$|dollars?\b", normalized_text):
+        return "USD"
+    if "$" in text and any(marker in normalized_location for marker in MEXICO_LOCATION_MARKERS):
+        return "MXN"
+    return criteria.currency.upper()
+
+
+def extract_annual_salary(
+    job: JobPosting,
+    criteria: SearchCriteria = SEARCH,
+) -> tuple[str, int] | None:
+    salary_blob = " ".join(part for part in (job.salary_text, job.description) if part).strip()
+    if not salary_blob or not SALARY_HINT_PATTERN.search(salary_blob):
+        return None
+
+    amounts = [
+        parsed
+        for match in SALARY_NUMBER_PATTERN.finditer(salary_blob)
+        if (parsed := _parse_salary_number(match.group())) is not None and parsed >= 100
+    ]
+    if not amounts:
+        return None
+
+    annual_amount = max(amounts) * _salary_period_multiplier(salary_blob)
+    currency = _infer_salary_currency(job, salary_blob, criteria)
+    return currency, annual_amount
+
+
+def job_meets_salary_threshold(
+    job: JobPosting,
+    criteria: SearchCriteria = SEARCH,
+) -> bool:
+    salary_info = extract_annual_salary(job, criteria)
+    if salary_info is None:
+        return True
+
+    currency, annual_amount = salary_info
+    threshold = criteria.min_salary_mxn if currency == "MXN" else criteria.min_salary_usd
+    return annual_amount >= threshold
 
 
 # ── OpenAI client ──────────────────────────────────────────────────────────────
@@ -271,6 +392,14 @@ def process_job(job: JobPosting) -> dict | None:
     Select resume → score → filter → prepare submission assets.
     Returns a dict ready for submission, or None if below threshold.
     """
+    salary_info = extract_annual_salary(job)
+    if salary_info is not None:
+        currency, annual_amount = salary_info
+        threshold = SEARCH.min_salary_mxn if currency == "MXN" else SEARCH.min_salary_usd
+        if annual_amount < threshold:
+            log.info("  → Skipped (salary %s %s < %s)", annual_amount, currency, threshold)
+            return None
+
     variant, selected_resume = select_resume_variant(job)
     selected_resume_pdf = resolve_resume_path(variant)
 

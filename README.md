@@ -35,6 +35,7 @@ Copy [.env.example](.env.example) to `.env` and fill in the values you need.
 The main settings live in [config.py](config.py):
 
 - Search criteria such as job titles, keywords, locations, salary floor, and company filters
+- Sweep tiering via `SWEEPS`, with `daily`, `weekly`, and `monthly` company bundles
 - AI settings such as provider, model, scoring threshold, and cover letter behavior
 - Run behavior such as per-run application limit, browser mode, and follow-up timing
 
@@ -53,6 +54,8 @@ The main entry point is [main.py](main.py).
 ```powershell
 python main.py
 python main.py --dry-run
+python main.py --dry-run --sweep-tier daily
+python main.py --dry-run --sweep-tier weekly
 python main.py --followups
 python main.py --stats
 python main.py --limit 5

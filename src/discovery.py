@@ -13,13 +13,15 @@ import json
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
 
-from config import BEHAVIOR, DATA_DIR, SEARCH
-from .companies import COMPANIES 
+from config import BEHAVIOR, DATA_DIR, SEARCH, SWEEPS
+
+from .companies import COMPANIES, build_company_list
+
 log = logging.getLogger("jobbot.discovery")
 
 
@@ -39,7 +41,7 @@ class JobPosting:
     posted_date: str = ""
     apply_method: str = ""         # "external" | "email"
     match_score: int = 0
-    discovered_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    discovered_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def compute_id(self):
         self.id = hashlib.md5(f"{self.source}::{self.url}".encode()).hexdigest()[:12]
@@ -150,6 +152,13 @@ class IndeedDiscovery:
 
 # ── Career page discovery ──────────────────────────────────────────────────────
 
+
+def get_company_targets_for_tier(sweep_tier: str | None = None) -> list[tuple[str, str]]:
+    group_names = SWEEPS.resolve_groups(sweep_tier)
+    company_limit = SWEEPS.get_company_limit(sweep_tier)
+    return build_company_list(group_names, limit=company_limit)
+
+
 class CareerPageDiscovery:
     """
     Scrapes Lever / Greenhouse / Ashby ATS public APIs.
@@ -163,12 +172,28 @@ class CareerPageDiscovery:
     LEVER_URL      = "https://api.lever.co/v0/postings/{slug}?mode=json"
     ASHBY_URL      = "https://jobs.ashbyhq.com/api/non-user-graphql"
 
+    def __init__(
+        self,
+        company_targets: list[tuple[str, str]] | None = None,
+        sweep_tier: str | None = None,
+    ) -> None:
+        self.sweep_tier = SWEEPS.resolve_tier(sweep_tier)
+        self.company_targets = company_targets or get_company_targets_for_tier(
+            self.sweep_tier,
+        )
+
     async def discover(self) -> list[JobPosting]:
         postings: list[JobPosting] = []
         seen = load_seen()
 
+        log.info(
+            "Career sweep '%s': checking %s company pages",
+            self.sweep_tier,
+            len(self.company_targets),
+        )
+
         async with httpx.AsyncClient(timeout=10) as client:
-            for slug, ats in self.COMPANIES:
+            for slug, ats in self.company_targets:
                 try:
                     if ats == "greenhouse":
                         jobs = await self._greenhouse(client, slug, seen)
@@ -263,14 +288,18 @@ class CareerPageDiscovery:
 
 # ── Unified runner ─────────────────────────────────────────────────────────────
 
-async def discover_all(limit_per_source: int = 30) -> list[JobPosting]:
+async def discover_all(
+    limit_per_source: int = 30,
+    sweep_tier: str | None = None,
+) -> list[JobPosting]:
     """Run all enabled discovery sources concurrently."""
     tasks = []
+    resolved_tier = SWEEPS.resolve_tier(sweep_tier)
 
     if BEHAVIOR.use_indeed:
         tasks.append(IndeedDiscovery().discover(limit=limit_per_source))
     if BEHAVIOR.use_career_pages:
-        tasks.append(CareerPageDiscovery().discover())
+        tasks.append(CareerPageDiscovery(sweep_tier=resolved_tier).discover())
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     all_jobs: list[JobPosting] = []

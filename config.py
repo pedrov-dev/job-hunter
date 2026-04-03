@@ -35,42 +35,118 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # Use an App Password for Gmail
 # ── Job Search Criteria ────────────────────────────────────────────────────────
 @dataclass
 class SearchCriteria:
-    # What you're looking for
     job_titles: list[str] = field(default_factory=lambda: [
-        "AI Consultant",
-        "AI Strategy Lead",
-        "Head of AI",
+        "AI Engineer",
+        "AI Solutions Architect",
+        "LLM Engineer",
+        "GenAI Product Engineer",
+        "Conversational AI Engineer",
         "Machine Learning Consultant",
         "Automation Consultant",
+        "AI Product Manager",
     ])
     keywords_required: list[str] = field(default_factory=lambda: [
-        "AI", "automation", "LLM"
+        "AI",
+        "automation",
+        "LLM",
+        "GenAI",
+        "RAG",
+        "agents",
+        "Python",
+        "OpenAI",
     ])
     keywords_excluded: list[str] = field(default_factory=lambda: [
-        "internship", "junior", "entry level"
+        "internship",
+        "unpaid",
+        "research scientist",
+        "entry level",
     ])
 
-    # Location
     locations: list[str] = field(default_factory=lambda: [
-        "Mexico City", "Remote", "CDMX"
+        "Mexico City",
+        "CDMX",
+        "Ciudad de México",
+        "Remote",
+        "Hybrid",
+        "Latin America",
     ])
     remote_ok: bool = True
 
-    # Compensation
-    min_salary_usd: int = 60_000
+    # Annual compensation floors. Mexico-based roles can be filtered in MXN.
+    min_salary_usd: int = 80000
+    min_salary_mxn: int = 600000
     currency: str = "USD"
 
-    # Company filters
     company_sizes: list[str] = field(default_factory=lambda: [
-        "51-200", "201-500", "501-1000", "1001-5000"
+        "11-50",
+        "51-200",
+        "201-500",
+        "501-1000",
+        "1001-5000",
+        "5001-10000",
     ])
     industries_preferred: list[str] = field(default_factory=lambda: [
-        "Technology", "Financial Services", "Healthcare", "Consulting"
+        "Technology",
+        "SaaS",
+        "Fintech",
+        "Financial Services",
+        "Healthcare",
+        "Consulting",
+        "EdTech",
+        "E-commerce",
+        "Insurtech",
     ])
     companies_blacklisted: list[str] = field(default_factory=list)
 
-    # Job post freshness
     max_days_old: int = 7
+
+
+@dataclass
+class SweepConfig:
+    active_tier: str = "daily"
+    tier_descriptions: dict[str, str] = field(default_factory=lambda: {
+        "daily": "CDMX-presence + LATAM-remote companies (~30)",
+        "weekly": "AI-native startups + global remote-friendly companies (~50)",
+        "monthly": "Relocation/visa sponsors + enterprise platforms (~40)",
+        "all": "Full sweep across every priority bucket",
+    })
+    tier_groups: dict[str, list[str]] = field(default_factory=lambda: {
+        "daily": ["cdmx_presence", "latam_remote"],
+        "weekly": ["ai_native_startups", "global_remote_friendly"],
+        "monthly": ["relocation_visa", "enterprise_platforms"],
+        "all": [
+            "cdmx_presence",
+            "latam_remote",
+            "ai_native_startups",
+            "global_remote_friendly",
+            "relocation_visa",
+            "enterprise_platforms",
+        ],
+    })
+    cadence_days: dict[str, int] = field(default_factory=lambda: {
+        "daily": 1,
+        "weekly": 7,
+        "monthly": 30,
+    })
+    company_limits: dict[str, int] = field(default_factory=lambda: {
+        "daily": 30,
+        "weekly": 50,
+        "monthly": 40,
+        "all": 999,
+    })
+
+    def resolve_tier(self, tier: str | None = None) -> str:
+        candidate = (tier or self.active_tier).strip().lower()
+        return candidate if candidate in self.tier_groups else self.active_tier
+
+    def resolve_groups(self, tier: str | None = None) -> list[str]:
+        return self.tier_groups[self.resolve_tier(tier)]
+
+    def describe_tier(self, tier: str | None = None) -> str:
+        return self.tier_descriptions[self.resolve_tier(tier)]
+
+    def get_company_limit(self, tier: str | None = None) -> int:
+        return self.company_limits[self.resolve_tier(tier)]
 
 
 @dataclass(frozen=True)
@@ -147,6 +223,7 @@ class BehaviorConfig:
 
 # ── Instantiate defaults ───────────────────────────────────────────────────────
 SEARCH   = SearchCriteria()
+SWEEPS   = SweepConfig()
 RESUMES  = ResumeConfig()
 AI       = AIConfig()
 BEHAVIOR = BehaviorConfig()
